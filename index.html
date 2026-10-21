@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Multiplayer FPS Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+            background-color: #0f172a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .hud-panel {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white">
+
+    <!-- Crosshair Custom Center Pointer -->
+    <div id="crosshair">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="2" stroke-linecap="round">
+            <line x1="12" y1="2" x2="12" y2="9"></line>
+            <line x1="12" y1="15" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="9" y2="12"></line>
+            <line x1="15" y1="12" x2="22" y2="12"></line>
+            <circle cx="12" cy="12" r="1.5" fill="#00ffcc" />
+        </svg>
+    </div>
+
+    <!-- HUD Layout -->
+    <div id="hud" class="flex flex-col justify-between p-6">
+        <!-- Top Stats Bar -->
+        <div class="flex justify-between items-start">
+            <div class="bg-slate-800/80 backdrop-blur border border-slate-700 p-4 rounded-xl shadow-lg">
+                <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">3D FPS ARENA</h1>
+                <p class="text-xs text-slate-400 mt-1">[W][A][S][D]: 移動 | [Space]: ジャンプ | マウス: 視点移動</p>
+                <p class="text-xs text-slate-400">[左クリック]: 射撃</p>
+            </div>
+            
+            <div class="bg-slate-800/80 backdrop-blur border border-slate-700 p-4 rounded-xl shadow-lg flex gap-6">
+                <div>
+                    <p class="text-xs text-slate-400">SCORE</p>
+                    <p id="score-text" class="text-2xl font-black text-cyan-400">0</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400">HEALTH</p>
+                    <div class="w-32 bg-slate-700 h-4 rounded-full mt-1 overflow-hidden">
+                        <div id="health-bar" class="bg-emerald-500 h-full w-full transition-all duration-200"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Start / Pause Overlay -->
+        <div id="start-overlay" class="hud-panel absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
+            <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
+                <div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-500/30">
+                    <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">ゲームを開始</h2>
+                <p class="text-slate-400 text-sm mb-6">画面をクリックするとマウス操作（エイム）が有効になります。[Esc]で解除できます。</p>
+                <button id="start-btn" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3 px-6 rounded-xl transition duration-200 shadow-lg shadow-cyan-500/25">
+                    プレイを開始する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Script Loader -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration provided by user
+        const firebaseConfig = {
+            apiKey: "AIzaSyB4CEehZ7eT4TTYRlnmd3fu6kYwVZdX5Kw",
+            authDomain: "aaaa-5b16e.firebaseapp.com",
+            projectId: "aaaa-5b16e",
+            storageBucket: "aaaa-5b16e.firebasestorage.app",
+            messagingSenderId: "462669237707",
+            appId: "1:462669237707:web:32ca4b551348f04ab2fa4e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fps-game-demo';
+
+        // Anonymous auth login
+        signInAnonymously(auth).then((cred) => {
+            currentUser = cred.user;
+            console.log("Firebase Authenticated:", currentUser.uid);
+            setupMultiplayerSync();
+        }).catch((err) => {
+            console.warn("Firebase Auth fallback/offline mode:", err);
+        });
+
+        // Three.js Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0f1d);
+        scene.fog = new THREE.FogExp2(0x0a0f1d, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // Ground Grid
+        const gridHelper = new THREE.GridHelper(100, 50, 0x00f0ff, 0x1e293b);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        const floorGeo = new THREE.PlaneGeometry(100, 100);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Obstacles / Cover Blocks
+        const obstacles = [];
+        const boxGeo = new THREE.BoxGeometry(2, 3, 2);
+        const boxMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.2 });
+
+        for (let i = 0; i < 25; i++) {
+            const box = new THREE.Mesh(boxGeo, boxMat);
+            box.position.x = (Math.random() - 0.5) * 60;
+            box.position.z = (Math.random() - 0.5) * 60;
+            box.position.y = 1.5;
+            box.castShadow = true;
+            box.receiveShadow = true;
+            scene.add(box);
+            obstacles.push(box);
+        }
+
+        // Target Dummies
+        const targets = [];
+        const targetGeo = new THREE.CylinderGeometry(0.5, 0.5, 2, 16);
+        const targetMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x450a0a });
+
+        function createTarget(x, z) {
+            const target = new THREE.Mesh(targetGeo, targetMat);
+            target.position.set(x, 1, z);
+            target.castShadow = true;
+            scene.add(target);
+            targets.push(target);
+        }
+
+        for (let i = 0; i < 8; i++) {
+            createTarget((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50);
+        }
+
+        // Player Physics & Controls State
+        const player = {
+            height: 1.7,
+            speed: 0.15,
+            velocity: new THREE.Vector3(),
+            isGrounded: true,
+            score: 0,
+            health: 100
+        };
+
+        const keys = { w: false, a: false, s: false, d: false, space: false };
+
+        // Mouse Pitch / Yaw angles
+        let yaw = 0;
+        let pitch = 0;
+
+        // Key Listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyW') keys.w = true;
+            if (e.code === 'KeyA') keys.a = true;
+            if (e.code === 'KeyS') keys.s = true;
+            if (e.code === 'KeyD') keys.d = true;
+            if (e.code === 'Space') keys.space = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyW') keys.w = false;
+            if (e.code === 'KeyA') keys.a = false;
+            if (e.code === 'KeyS') keys.s = false;
+            if (e.code === 'KeyD') keys.d = false;
+            if (e.code === 'Space') keys.space = false;
+        });
+
+        // Pointer Lock (Mouse Aiming Controls)
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+
+        startBtn.addEventListener('click', () => {
+            document.body.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === document.body) {
+                startOverlay.classList.add('hidden');
+            } else {
+                startOverlay.classList.remove('hidden');
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement !== document.body) return;
+
+            const sensitivity = 0.002;
+            yaw -= e.movementX * sensitivity;
+            pitch -= e.movementY * sensitivity;
+
+            // Clamp pitch to avoid screen flip
+            pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+        });
+
+        // Weapon / Shooting Logic
+        const bullets = [];
+        window.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement !== document.body || e.button !== 0) return;
+
+            shootRaycast();
+        });
+
+        function shootRaycast() {
+            // Raycast from Camera Center
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+            const intersects = raycaster.intersectObjects(targets);
+
+            if (intersects.length > 0) {
+                const hitObj = intersects[0].object;
+                
+                // Visual Flash on Hit
+                hitObj.material.color.setHex(0xffffff);
+                setTimeout(() => hitObj.material.color.setHex(0xef4444), 100);
+
+                // Respawn target position
+                hitObj.position.x = (Math.random() - 0.5) * 50;
+                hitObj.position.z = (Math.random() - 0.5) * 50;
+
+                // Score Update
+                player.score += 100;
+                document.getElementById('score-text').innerText = player.score;
+            }
+        }
+
+        const remotePlayers = {};
+
+        function setupMultiplayerSync() {
+            if (!currentUser) return;
+
+            const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
+
+            // Send local player state to Firestore periodically
+            setInterval(() => {
+                if (!currentUser) return;
+                const playerRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', currentUser.uid);
+                setDoc(playerRef, {
+                    x: camera.position.x,
+                    y: camera.position.y - player.height,
+                    z: camera.position.z,
+                    yaw: yaw,
+                    score: player.score,
+                    updatedAt: Date.now()
+                }, { merge: true }).catch(() => {});
+            }, 100);
+
+            // Listen for other players in realtime
+            onSnapshot(playersCol, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const id = change.doc.id;
+                    if (id === currentUser?.uid) return; // Skip self
+
+                    const data = change.doc.data();
+
+                    if (change.type === 'added' || change.type === 'modified') {
+                        if (!remotePlayers[id]) {
+                            // Create remote player mesh
+                            const group = new THREE.Group();
+                            const mesh = new THREE.Mesh(
+                                new THREE.CapsuleGeometry(0.4, 1.2, 4, 8),
+                                new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x083344 })
+                            );
+                            mesh.position.y = 1;
+                            group.add(mesh);
+                            scene.add(group);
+                            remotePlayers[id] = group;
+                        }
+                        // Update remote position
+                        remotePlayers[id].position.set(data.x || 0, data.y || 0, data.z || 0);
+                        remotePlayers[id].rotation.y = data.yaw || 0;
+                    }
+
+                    if (change.type === 'removed') {
+                        if (remotePlayers[id]) {
+                            scene.remove(remotePlayers[id]);
+                            delete remotePlayers[id];
+                        }
+                    }
+                });
+            }, (error) => console.warn("Sync update error:", error));
+        }
+
+        camera.position.set(0, player.height, 5);
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = Math.min(clock.getDelta(), 0.1);
+
+            // Update Camera Rotation (Yaw & Pitch)
+            const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+            euler.x = pitch;
+            euler.y = yaw;
+            camera.quaternion.setFromEuler(euler);
+
+            // Calculate Forward & Right Direction Vectors based on Yaw
+            const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+            const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+            // WASD Movement
+            const moveDir = new THREE.Vector3();
+            if (keys.w) moveDir.add(forward);
+            if (keys.s) moveDir.sub(forward);
+            if (keys.d) moveDir.add(right);
+            if (keys.a) moveDir.sub(right);
+
+            if (moveDir.lengthSq() > 0) {
+                moveDir.normalize();
+                camera.position.addScaledVector(moveDir, player.speed);
+            }
+
+            // Jump Physics
+            if (keys.space && player.isGrounded) {
+                player.velocity.y = 8.0;
+                player.isGrounded = false;
+            }
+
+            // Gravity Update
+            if (!player.isGrounded) {
+                player.velocity.y -= 25.0 * delta;
+                camera.position.y += player.velocity.y * delta;
+
+                if (camera.position.y <= player.height) {
+                    camera.position.y = player.height;
+                    player.velocity.y = 0;
+                    player.isGrounded = true;
+                }
+            }
+
+            // Render 3D Scene
+            renderer.render(scene, camera);
+        }
+
+        // Window Resize Handling
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Launch Game Loop
+        animate();
+    </script>
+</body>
+</html>
