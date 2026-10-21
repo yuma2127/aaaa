@@ -86,7 +86,7 @@
                         APEX DESERT CANYON - R-99 ARENA
                     </h1>
                     <div class="text-xs text-amber-200 mt-1 space-y-0.5 font-semibold">
-                        <p><span class="text-amber-400">[W][A][S][D]</span>: 移動 (5歩の助走でダッシュ) | <span class="text-cyan-400">[Space]</span>: ジャンプ/壁登り/マントルブースト</p>
+                        <p><span class="text-amber-400">[W][A][S][D] / [方向キー]</span>: 移動 (5歩の助走でダッシュ) | <span class="text-cyan-400">[Space]</span>: ジャンプ/壁登り/マントルブースト</p>
                         <p><span class="text-amber-400">[Shift] / [C]</span>: スライディング (助走時高速) | <span class="text-amber-400">[R]</span>: リロード</p>
                         <p><span class="text-amber-400">[左クリック]</span>: 射撃 | <span class="text-amber-400">[右クリック]</span>: HOLOGRAPHIC 1X ADS (照準)</p>
                     </div>
@@ -166,7 +166,7 @@
             <div class="bg-slate-950/70 p-4 rounded-xl border border-amber-900/50 text-left text-xs text-slate-300 space-y-2 mb-6">
                 <div class="flex justify-between border-b border-slate-800 pb-1.5">
                     <span class="text-amber-400">助走・走破</span>
-                    <span class="font-bold text-white">5歩移動でダッシュ状態発動</span>
+                    <span class="font-bold text-white">5歩移動([WASD]/[方向キー])でダッシュ発動</span>
                 </div>
                 <div class="flex justify-between border-b border-slate-800 pb-1.5">
                     <span class="text-amber-400">壁登り & マントルブースト</span>
@@ -416,10 +416,10 @@
         let shootCooldown = 0;
 
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'KeyW') keys.w = true;
-            if (e.code === 'KeyA') keys.a = true;
-            if (e.code === 'KeyS') keys.s = true;
-            if (e.code === 'KeyD') keys.d = true;
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
             if (e.code === 'KeyR') reloadWeapon();
 
             if (e.code === 'Space') {
@@ -436,10 +436,10 @@
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW') keys.w = false;
-            if (e.code === 'KeyA') keys.a = false;
-            if (e.code === 'KeyS') keys.s = false;
-            if (e.code === 'KeyD') keys.d = false;
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = false;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
             if (e.code === 'Space') keys.space = false;
             if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') keys.shift = false;
         });
@@ -607,6 +607,33 @@
             createEnemyBot((Math.random() - 0.5) * 110, (Math.random() - 0.5) * 110);
         }
 
+        function createBulletTracer(startPos, targetPos) {
+            const material = new THREE.LineBasicMaterial({
+                color: 0xfef08a,
+                transparent: true,
+                opacity: 0.9,
+                linewidth: 2
+            });
+            const geometry = new THREE.BufferGeometry().setFromPoints([startPos, targetPos]);
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+
+            // Animate bullet line fading out quickly
+            let fadeFrames = 5;
+            function fadeTracer() {
+                fadeFrames--;
+                material.opacity -= 0.18;
+                if (fadeFrames <= 0) {
+                    scene.remove(line);
+                    geometry.dispose();
+                    material.dispose();
+                } else {
+                    requestAnimationFrame(fadeTracer);
+                }
+            }
+            fadeTracer();
+        }
+
         function fireWeapon() {
             if (player.isReloading) return;
             if (player.ammo <= 0) {
@@ -622,16 +649,22 @@
             setTimeout(() => { muzzleLight.intensity = 0; }, 30);
 
             // R-99 Recoil Kick
-            weaponGroup.position.z += 0.04;
-            pitch += 0.007;
+            weaponGroup.position.z += 0.03;
+            pitch += 0.005;
 
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
+            // Get muzzle world position for tracer origin
+            const muzzlePos = new THREE.Vector3();
+            muzzleLight.getWorldPosition(muzzlePos);
+
             const botMeshes = enemies.map(b => b.children[0]);
             const intersects = raycaster.intersectObjects(botMeshes);
 
+            let impactPoint;
             if (intersects.length > 0) {
+                impactPoint = intersects[0].point.clone();
                 const hitMesh = intersects[0].object;
                 const botGroup = hitMesh.parent;
 
@@ -653,7 +686,13 @@
                     botGroup.position.set((Math.random() - 0.5) * 120, 0, (Math.random() - 0.5) * 120);
                     botGroup.userData.health = 100;
                 }
+            } else {
+                // Extended point into distance if no hit
+                impactPoint = camera.position.clone().addScaledVector(raycaster.ray.direction, 80);
             }
+
+            // Create visible bullet tracer
+            createBulletTracer(muzzlePos, impactPoint);
         }
 
         function spawnDamageNumber(worldPos, damage, isHeadshot) {
@@ -777,26 +816,26 @@
             euler.y = yaw;
             camera.quaternion.setFromEuler(euler);
 
-            // ADS 1X Scope View Alignment
-            const targetFOV = player.isADS ? 48 : (player.isSliding ? 84 : 75);
-            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.2);
+            // ADS 1X Scope View Alignment with fluid motion transition
+            const targetFOV = player.isADS ? 42 : (player.isSliding ? 84 : 75);
+            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.25);
             camera.updateProjectionMatrix();
 
-            // Position gun for Holographic Scope ADS alignment
+            // Position gun smoothly for Holographic Scope ADS alignment
             const targetGunPos = player.isADS 
                 ? new THREE.Vector3(0, -0.117, -0.28)  // Aligns Holo Reticle to center screen
                 : new THREE.Vector3(0.2, -0.22, -0.45);
-            weaponGroup.position.lerp(targetGunPos, 0.22);
+            weaponGroup.position.lerp(targetGunPos, 0.28);
 
             // Hide crosshair SVG when ADS scope is active
             const crosshairSvg = document.getElementById('crosshair-svg');
             if (crosshairSvg) crosshairSvg.style.opacity = player.isADS ? '0' : '1';
 
-            // Automatic Fire
+            // Automatic High Fire Rate
             shootCooldown -= delta;
             if (isMouseDown && shootCooldown <= 0) {
                 fireWeapon();
-                shootCooldown = 0.08; // High fire rate (R-99)
+                shootCooldown = 0.05; // Rapid fire rate boost
             }
 
             // Mantle Boost Timeout Logic
