@@ -103,14 +103,14 @@
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] font-bold text-sky-400 w-12">SHIELD</span>
                     <div class="flex-1 bg-slate-950/80 h-2.5 rounded-sm p-0.5 border border-sky-500/30">
-                        <div id="shield-bar" class="bg-gradient-to-r from-sky-400 to-cyan-300 h-full w-full rounded-xs transition-all duration-150"></div>
+                        <div id="shield-bar" class="bg-gradient-to-r from-sky-400 to-cyan-300 h-full w-full rounded-sm transition-all duration-150"></div>
                     </div>
                 </div>
                 <!-- Health Bar -->
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] font-bold text-emerald-400 w-12">HP</span>
                     <div class="flex-1 bg-slate-950/80 h-3.5 rounded-sm p-0.5 border border-emerald-500/30">
-                        <div id="health-bar" class="bg-gradient-to-r from-emerald-500 to-teal-300 h-full w-full rounded-xs transition-all duration-150"></div>
+                        <div id="health-bar" class="bg-gradient-to-r from-emerald-500 to-teal-300 h-full w-full rounded-sm transition-all duration-150"></div>
                     </div>
                 </div>
             </div>
@@ -177,27 +177,33 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB4CEehZ7eT4TTYRlnmd3fu6kYwVZdX5Kw",
-            authDomain: "aaaa-5b16e.firebaseapp.com",
-            projectId: "aaaa-5b16e",
-            storageBucket: "aaaa-5b16e.firebasestorage.app",
-            messagingSenderId: "462669237707",
-            appId: "1:462669237707:web:32ca4b551348f04ab2fa4e"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
+        // Safe Firebase Initialization
+        let db = null;
+        let auth = null;
         let currentUser = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'apex-fps-demo';
 
-        signInAnonymously(auth).then((cred) => {
-            currentUser = cred.user;
-            setupMultiplayerSync();
-        }).catch((err) => console.warn("Firebase Auth fallback mode active:", err));
+        try {
+            const firebaseConfig = {
+                apiKey: "AIzaSyB4CEehZ7eT4TTYRlnmd3fu6kYwVZdX5Kw",
+                authDomain: "aaaa-5b16e.firebaseapp.com",
+                projectId: "aaaa-5b16e",
+                storageBucket: "aaaa-5b16e.firebasestorage.app",
+                messagingSenderId: "462669237707",
+                appId: "1:462669237707:web:32ca4b551348f04ab2fa4e"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            signInAnonymously(auth).then((cred) => {
+                currentUser = cred.user;
+                setupMultiplayerSync();
+            }).catch((err) => console.warn("Firebase Auth fallback mode active:", err));
+        } catch(e) {
+            console.warn("Firebase initialization skipped:", e);
+        }
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x070b14);
@@ -228,7 +234,6 @@
         dirLight.shadow.camera.bottom = -50;
         scene.add(dirLight);
 
-        // Map Materials
         const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7, metalness: 0.2 });
         const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.5 });
         const accentMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3, metalness: 0.6 });
@@ -264,7 +269,7 @@
         createBox(0, 0, 0, 20, 3, 20, accentMat);
         createBox(0, 3, 0, 10, 3, 10, wallMat);
 
-        // Ramps / Slopes (APEX sliding hills)
+        // Ramps / Slopes
         const rampGeo = new THREE.BoxGeometry(8, 1, 16);
         const ramp = new THREE.Mesh(rampGeo, accentMat);
         ramp.position.set(0, 1.2, 16);
@@ -377,30 +382,27 @@
 
         function startSliding() {
             player.isSliding = true;
-            player.slideTimer = 45; // Sliding momentum duration
+            player.slideTimer = 45;
             showActionHint("SLIDING");
         }
 
         function handleJumpOrClimb() {
-            // Apex Wall Climb Mechanism
             if (!player.isGrounded) {
-                // Check if facing a wall directly
                 const raycaster = new THREE.Raycaster();
                 const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 raycaster.set(camera.position, forward);
                 const intersects = raycaster.intersectObjects(mapColliders.map(c => c.mesh));
 
                 if (intersects.length > 0 && intersects[0].distance < 1.2) {
-                    player.velocity.y = 8.5; // Climb impulse
+                    player.velocity.y = 8.5;
                     player.isClimbing = true;
                     showActionHint("WALL CLIMB");
                     return;
                 }
             }
 
-            // Normal or Slide-Hop Jump
             if (player.isGrounded) {
-                player.velocity.y = player.isSliding ? 10.0 : 8.5; // Slide hop boost
+                player.velocity.y = player.isSliding ? 10.0 : 8.5;
                 player.isGrounded = false;
                 if (player.isSliding) showActionHint("SLIDE HOP!");
             }
@@ -408,23 +410,27 @@
 
         function showActionHint(text) {
             const el = document.getElementById('action-hint');
-            el.innerText = text;
-            el.style.opacity = '1';
-            setTimeout(() => { el.style.opacity = '0'; }, 600);
+            if (el) {
+                el.innerText = text;
+                el.style.opacity = '1';
+                setTimeout(() => { el.style.opacity = '0'; }, 600);
+            }
         }
 
         const startOverlay = document.getElementById('start-overlay');
         const startBtn = document.getElementById('start-btn');
 
-        startBtn.addEventListener('click', () => {
-            document.body.requestPointerLock();
-        });
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                document.body.requestPointerLock();
+            });
+        }
 
         document.addEventListener('pointerlockchange', () => {
             if (document.pointerLockElement === document.body) {
-                startOverlay.classList.add('hidden');
+                if (startOverlay) startOverlay.classList.add('hidden');
             } else {
-                startOverlay.classList.remove('hidden');
+                if (startOverlay) startOverlay.classList.remove('hidden');
             }
         });
 
@@ -439,8 +445,8 @@
 
         window.addEventListener('mousedown', (e) => {
             if (document.pointerLockElement !== document.body) return;
-            if (e.button === 0) isMouseDown = true; // Fire
-            if (e.button === 2) player.isADS = true; // ADS
+            if (e.button === 0) isMouseDown = true;
+            if (e.button === 2) player.isADS = true;
         });
 
         window.addEventListener('mouseup', (e) => {
@@ -448,7 +454,6 @@
             if (e.button === 2) player.isADS = false;
         });
 
-        // Prevent Right Click Context Menu
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         const enemies = [];
@@ -458,13 +463,11 @@
         function createEnemyBot(x, z) {
             const botGroup = new THREE.Group();
             
-            // Bot Body Mesh
             const mesh = new THREE.Mesh(enemyGeo, enemyMat);
             mesh.position.y = 1.1;
             mesh.castShadow = true;
             botGroup.add(mesh);
 
-            // Apex Shield Visual Indicator Ring
             const ringGeo = new THREE.TorusGeometry(0.6, 0.03, 8, 24);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
             const ring = new THREE.Mesh(ringGeo, ringMat);
@@ -474,7 +477,6 @@
 
             botGroup.position.set(x, 0, z);
 
-            // AI State
             botGroup.userData = {
                 health: 100,
                 directionAngle: Math.random() * Math.PI * 2,
@@ -487,7 +489,6 @@
             enemies.push(botGroup);
         }
 
-        // Spawn 8 Moving Apex Bots
         for (let i = 0; i < 8; i++) {
             createEnemyBot((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
         }
@@ -495,17 +496,15 @@
         function fireWeapon() {
             if (player.ammo <= 0) return;
             player.ammo--;
-            document.getElementById('ammo-count').innerText = player.ammo;
+            const ammoEl = document.getElementById('ammo-count');
+            if (ammoEl) ammoEl.innerText = player.ammo;
 
-            // Flash effect
             muzzleLight.intensity = 3.0;
             setTimeout(() => { muzzleLight.intensity = 0; }, 40);
 
-            // Recoil Animation
             weaponGroup.position.z += 0.05;
             pitch += 0.005;
 
-            // Raycasting for hits
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
@@ -516,25 +515,21 @@
                 const hitMesh = intersects[0].object;
                 const botGroup = hitMesh.parent;
 
-                // Damage Calculation
                 const isHeadshot = intersects[0].point.y > botGroup.position.y + 1.4;
                 const damage = isHeadshot ? 45 : 18;
 
                 botGroup.userData.health -= damage;
 
-                // Hit Flash
                 hitMesh.material.color.setHex(0xffffff);
                 setTimeout(() => hitMesh.material.color.setHex(0xef4444), 80);
 
-                // Display Damage Number on Screen
                 spawnDamageNumber(intersects[0].point, damage, isHeadshot);
 
-                // Bot Destroy / Respawn
                 if (botGroup.userData.health <= 0) {
                     player.score += 100;
-                    document.getElementById('score-text').innerText = player.score;
+                    const scoreEl = document.getElementById('score-text');
+                    if (scoreEl) scoreEl.innerText = player.score;
                     
-                    // Respawn elsewhere
                     botGroup.position.set((Math.random() - 0.5) * 90, 0, (Math.random() - 0.5) * 90);
                     botGroup.userData.health = 100;
                 }
@@ -551,7 +546,7 @@
             el.style.left = `${x}px`;
             el.style.top = `${y}px`;
             el.innerText = damage;
-            if (isHeadshot) el.style.color = '#ef4444'; // Red for headshot
+            if (isHeadshot) el.style.color = '#ef4444';
 
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 800);
@@ -560,7 +555,7 @@
         const remotePlayers = {};
 
         function setupMultiplayerSync() {
-            if (!currentUser) return;
+            if (!currentUser || !db) return;
             const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
 
             setInterval(() => {
@@ -618,13 +613,11 @@
 
             const delta = Math.min(clock.getDelta(), 0.1);
 
-            // Update Aim Orientation
             const euler = new THREE.Euler(0, 0, 0, 'YXZ');
             euler.x = pitch;
             euler.y = yaw;
             camera.quaternion.setFromEuler(euler);
 
-            // ADS FOV & Gun Positioning
             const targetFOV = player.isADS ? 50 : (player.isSliding ? 82 : 75);
             camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.15);
             camera.updateProjectionMatrix();
@@ -632,18 +625,15 @@
             const targetGunPos = player.isADS ? new THREE.Vector3(0, -0.14, -0.35) : new THREE.Vector3(0.22, -0.22, -0.45);
             weaponGroup.position.lerp(targetGunPos, 0.2);
 
-            // Firing Loop
             shootCooldown -= delta;
             if (isMouseDown && shootCooldown <= 0) {
                 fireWeapon();
-                shootCooldown = 0.11; // Apex automatic fire rate
+                shootCooldown = 0.11;
             }
 
-            // Direction Vectors
             const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
 
-            // Sliding & Height Transition
             if (player.isSliding) {
                 player.slideTimer--;
                 player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.2);
@@ -665,7 +655,6 @@
                 }
             }
 
-            // Vertical Physics (Gravity & Jump)
             if (!player.isGrounded) {
                 player.velocity.y -= 26.0 * delta;
                 camera.position.y += player.velocity.y * delta;
@@ -680,7 +669,6 @@
                 camera.position.y = player.currentHeight;
             }
 
-            // Dynamic Enemy AI Movement
             enemies.forEach((bot) => {
                 const data = bot.userData;
                 data.changeTimer -= delta;
@@ -690,17 +678,14 @@
                     data.changeTimer = 1.0 + Math.random() * 2.0;
                 }
 
-                // Smooth Rotate & Move Forward
                 bot.rotation.y = THREE.MathUtils.lerp(bot.rotation.y, data.directionAngle, 0.08);
                 const botForward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), bot.rotation.y);
                 bot.position.addScaledVector(botForward, data.speed);
 
-                // Bounds Checking
                 if (Math.abs(bot.position.x) > 70) bot.position.x *= -0.9;
                 if (Math.abs(bot.position.z) > 70) bot.position.z *= -0.9;
             });
 
-            // Render
             renderer.render(scene, camera);
         }
 
@@ -710,7 +695,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Start Loop on Window Load
         window.onload = () => {
             animate();
         };
