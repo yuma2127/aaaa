@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Multiplayer FPS Game</title>
+    <title>Apex-Style 3D FPS Arena</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -11,8 +11,8 @@
             margin: 0;
             overflow: hidden;
             user-select: none;
-            background-color: #0f172a;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #090d16;
+            font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
         }
         #crosshair {
             position: absolute;
@@ -21,83 +21,163 @@
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 10;
+            transition: transform 0.1s ease;
         }
-        #hud {
+        .damage-number {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            color: #facc15;
+            font-weight: 900;
+            font-size: 1.5rem;
+            text-shadow: 0 0 6px rgba(0,0,0,0.8);
             pointer-events: none;
-            z-index: 5;
+            animation: floatUp 0.8s ease-out forwards;
+            z-index: 15;
         }
-        .hud-panel {
-            pointer-events: auto;
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
+        }
+        /* Apex style skewed panels */
+        .apex-panel {
+            transform: skewX(-10deg);
+        }
+        .apex-panel-inner {
+            transform: skewX(10deg);
         }
     </style>
 </head>
-<body class="bg-slate-900 text-white">
+<body class="bg-slate-950 text-white">
 
-    <!-- Crosshair Custom Center Pointer -->
-    <div id="crosshair">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="2" stroke-linecap="round">
-            <line x1="12" y1="2" x2="12" y2="9"></line>
-            <line x1="12" y1="15" x2="12" y2="22"></line>
-            <line x1="2" y1="12" x2="9" y2="12"></line>
-            <line x1="15" y1="12" x2="22" y2="12"></line>
-            <circle cx="12" cy="12" r="1.5" fill="#00ffcc" />
+    <!-- Apex-Style Crosshair -->
+    <div id="crosshair" class="flex items-center justify-center">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" class="drop-shadow-[0_0_4px_rgba(6,182,212,0.8)]">
+            <!-- Center Dot -->
+            <circle cx="16" cy="16" r="1.5" fill="#00ffcc" />
+            <!-- Top/Bottom Lines -->
+            <line x1="16" y1="4" x2="16" y2="10" stroke="#00ffcc" stroke-width="2" stroke-linecap="round" />
+            <line x1="16" y1="22" x2="16" y2="28" stroke="#00ffcc" stroke-width="2" stroke-linecap="round" />
+            <!-- Left/Right Lines -->
+            <line x1="4" y1="16" x2="10" y2="16" stroke="#00ffcc" stroke-width="2" stroke-linecap="round" />
+            <line x1="22" y1="16" x2="28" y2="16" stroke="#00ffcc" stroke-width="2" stroke-linecap="round" />
         </svg>
     </div>
 
-    <!-- HUD Layout -->
-    <div id="hud" class="flex flex-col justify-between p-6">
-        <!-- Top Stats Bar -->
+    <!-- HUD Layer -->
+    <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-6">
+        
+        <!-- Top Stats / Controls Bar -->
         <div class="flex justify-between items-start">
-            <div class="bg-slate-800/80 backdrop-blur border border-slate-700 p-4 rounded-xl shadow-lg">
-                <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">3D FPS ARENA</h1>
-                <p class="text-xs text-slate-400 mt-1">[W][A][S][D]: 移動 | [Space]: ジャンプ | マウス: 視点移動</p>
-                <p class="text-xs text-slate-400">[左クリック]: 射撃</p>
-            </div>
-            
-            <div class="bg-slate-800/80 backdrop-blur border border-slate-700 p-4 rounded-xl shadow-lg flex gap-6">
-                <div>
-                    <p class="text-xs text-slate-400">SCORE</p>
-                    <p id="score-text" class="text-2xl font-black text-cyan-400">0</p>
+            <div class="apex-panel bg-slate-900/90 border-l-4 border-cyan-400 p-4 rounded-r-lg shadow-xl backdrop-blur-md">
+                <div class="apex-panel-inner">
+                    <h1 class="text-xl font-black italic tracking-wider bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
+                        APEX FPS ARENA
+                    </h1>
+                    <div class="text-xs text-slate-300 mt-1 space-y-0.5 font-medium">
+                        <p><span class="text-cyan-400 font-bold">[W][A][S][D]</span>: 移動 | <span class="text-cyan-400 font-bold">[Space]</span>: ジャンプ / 壁のぼり</p>
+                        <p><span class="text-cyan-400 font-bold">[Shift]</span>: スライディング (ダッシュ中に加速)</p>
+                        <p><span class="text-cyan-400 font-bold">[左クリック]</span>: 射撃 | <span class="text-cyan-400 font-bold">[右クリック]</span>: ADS (精準照準)</p>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-xs text-slate-400">HEALTH</p>
-                    <div class="w-32 bg-slate-700 h-4 rounded-full mt-1 overflow-hidden">
-                        <div id="health-bar" class="bg-emerald-500 h-full w-full transition-all duration-200"></div>
+            </div>
+
+            <div class="flex gap-4">
+                <div class="apex-panel bg-slate-900/90 border-r-4 border-amber-400 p-3 rounded-l-lg shadow-xl backdrop-blur-md">
+                    <div class="apex-panel-inner text-right">
+                        <p class="text-[10px] text-amber-400 font-bold tracking-widest">KILLS / SCORE</p>
+                        <p id="score-text" class="text-2xl font-black text-white">0</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Center Start / Pause Overlay -->
-        <div id="start-overlay" class="hud-panel absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
-            <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
-                <div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-500/30">
-                    <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
+        <!-- Dynamic Action Alert Message -->
+        <div id="action-hint" class="self-center text-cyan-300 font-black text-lg tracking-widest uppercase opacity-0 transition-opacity duration-200 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">
+            SLIDING
+        </div>
+
+        <!-- Bottom Status Bar (Health / Ammo) -->
+        <div class="flex justify-between items-end">
+            <!-- Health & Shield Bars -->
+            <div class="w-80 space-y-1">
+                <!-- Shield Bar -->
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-sky-400 w-12">SHIELD</span>
+                    <div class="flex-1 bg-slate-950/80 h-2.5 rounded-sm p-0.5 border border-sky-500/30">
+                        <div id="shield-bar" class="bg-gradient-to-r from-sky-400 to-cyan-300 h-full w-full rounded-xs transition-all duration-150"></div>
+                    </div>
                 </div>
-                <h2 class="text-2xl font-bold mb-2">ゲームを開始</h2>
-                <p class="text-slate-400 text-sm mb-6">画面をクリックするとマウス操作（エイム）が有効になります。[Esc]で解除できます。</p>
-                <button id="start-btn" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3 px-6 rounded-xl transition duration-200 shadow-lg shadow-cyan-500/25">
-                    プレイを開始する
-                </button>
+                <!-- Health Bar -->
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-emerald-400 w-12">HP</span>
+                    <div class="flex-1 bg-slate-950/80 h-3.5 rounded-sm p-0.5 border border-emerald-500/30">
+                        <div id="health-bar" class="bg-gradient-to-r from-emerald-500 to-teal-300 h-full w-full rounded-xs transition-all duration-150"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apex Ammo UI -->
+            <div class="apex-panel bg-slate-900/90 border-r-4 border-cyan-400 px-6 py-3 rounded-l-xl shadow-2xl backdrop-blur-md text-right">
+                <div class="apex-panel-inner">
+                    <p class="text-[10px] text-slate-400 font-bold tracking-widest">WEAPON - R-301 CARBINE</p>
+                    <div class="flex items-baseline justify-end gap-1">
+                        <span id="ammo-count" class="text-4xl font-black text-cyan-400">28</span>
+                        <span class="text-slate-500 font-bold text-lg">/ ∞</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Firebase Script Loader -->
+    <div id="start-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-lg flex flex-col items-center justify-center z-30">
+        <div class="bg-slate-900 border border-cyan-500/30 p-8 rounded-2xl max-w-lg w-full text-center shadow-[0_0_50px_rgba(6,182,212,0.15)] relative overflow-hidden">
+            <div class="absolute -right-12 -top-12 w-40 h-40 bg-cyan-500/10 rounded-full blur-2xl"></div>
+            
+            <div class="w-16 h-16 bg-cyan-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-cyan-400/50 shadow-inner">
+                <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+
+            <h2 class="text-3xl font-black italic tracking-wider bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent mb-2">
+                APEX 3D MOVEMENT FPS
+            </h2>
+            <p class="text-cyan-400/80 text-xs font-bold tracking-widest uppercase mb-6">High-Mobility Battle Simulation</p>
+
+            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 text-left text-xs text-slate-300 space-y-2 mb-6">
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">移動</span>
+                    <span class="font-bold text-white">[W][A][S][D]</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">スライディング (高速滑走)</span>
+                    <span class="font-bold text-white">[Shift] キー</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">ジャンプ / 壁のぼり</span>
+                    <span class="font-bold text-white">[Space] キー</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">ADS (精準照準)</span>
+                    <span class="font-bold text-white">[右クリック] 保持</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">エイム / 射撃</span>
+                    <span class="font-bold text-white">[マウス] / [左クリック]</span>
+                </div>
+            </div>
+
+            <button id="start-btn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-cyan-500/30 uppercase tracking-widest text-sm">
+                ゲームを開始する
+            </button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration provided by user
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyB4CEehZ7eT4TTYRlnmd3fu6kYwVZdX5Kw",
             authDomain: "aaaa-5b16e.firebaseapp.com",
@@ -112,100 +192,159 @@
         const db = getFirestore(app);
 
         let currentUser = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fps-game-demo';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'apex-fps-demo';
 
-        // Anonymous auth login
         signInAnonymously(auth).then((cred) => {
             currentUser = cred.user;
-            console.log("Firebase Authenticated:", currentUser.uid);
             setupMultiplayerSync();
-        }).catch((err) => {
-            console.warn("Firebase Auth fallback/offline mode:", err);
-        });
+        }).catch((err) => console.warn("Firebase Auth fallback mode active:", err));
 
-        // Three.js Scene Setup
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0f1d);
-        scene.fog = new THREE.FogExp2(0x0a0f1d, 0.015);
+        scene.background = new THREE.Color(0x070b14);
+        scene.fog = new THREE.FogExp2(0x070b14, 0.008);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // Lights
+        // Lighting System
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(20, 40, 20);
+        const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+        dirLight.position.set(40, 60, 20);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 150;
+        dirLight.shadow.camera.left = -50;
+        dirLight.shadow.camera.right = 50;
+        dirLight.shadow.camera.top = 50;
+        dirLight.shadow.camera.bottom = -50;
         scene.add(dirLight);
 
-        // Ground Grid
-        const gridHelper = new THREE.GridHelper(100, 50, 0x00f0ff, 0x1e293b);
-        gridHelper.position.y = 0.01;
-        scene.add(gridHelper);
+        // Map Materials
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7, metalness: 0.2 });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.5 });
+        const accentMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3, metalness: 0.6 });
+        const neonMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x0891b2, emissiveIntensity: 0.8 });
 
-        const floorGeo = new THREE.PlaneGeometry(100, 100);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+        // Ground Mesh
+        const floorGeo = new THREE.PlaneGeometry(160, 160);
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         scene.add(floor);
 
-        // Obstacles / Cover Blocks
-        const obstacles = [];
-        const boxGeo = new THREE.BoxGeometry(2, 3, 2);
-        const boxMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.2 });
+        const gridHelper = new THREE.GridHelper(160, 40, 0x06b6d4, 0x1e293b);
+        gridHelper.position.y = 0.02;
+        scene.add(gridHelper);
 
-        for (let i = 0; i < 25; i++) {
-            const box = new THREE.Mesh(boxGeo, boxMat);
-            box.position.x = (Math.random() - 0.5) * 60;
-            box.position.z = (Math.random() - 0.5) * 60;
-            box.position.y = 1.5;
-            box.castShadow = true;
-            box.receiveShadow = true;
-            scene.add(box);
-            obstacles.push(box);
+        const mapColliders = [];
+
+        function createBox(x, y, z, w, h, d, mat = wallMat) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            mesh.position.set(x, y + h / 2, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            
+            // Bounding Box for Collisions
+            const box = new THREE.Box3().setFromObject(mesh);
+            mapColliders.push({ mesh, box, h, type: 'box' });
+            return mesh;
         }
 
-        // Target Dummies
-        const targets = [];
-        const targetGeo = new THREE.CylinderGeometry(0.5, 0.5, 2, 16);
-        const targetMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x450a0a });
+        // Center High Platform Complex
+        createBox(0, 0, 0, 20, 3, 20, accentMat);
+        createBox(0, 3, 0, 10, 3, 10, wallMat);
 
-        function createTarget(x, z) {
-            const target = new THREE.Mesh(targetGeo, targetMat);
-            target.position.set(x, 1, z);
-            target.castShadow = true;
-            scene.add(target);
-            targets.push(target);
+        // Ramps / Slopes (APEX sliding hills)
+        const rampGeo = new THREE.BoxGeometry(8, 1, 16);
+        const ramp = new THREE.Mesh(rampGeo, accentMat);
+        ramp.position.set(0, 1.2, 16);
+        ramp.rotation.x = Math.PI / 7;
+        ramp.castShadow = true;
+        ramp.receiveShadow = true;
+        scene.add(ramp);
+
+        // Perimeter Cover Walls & High Structures
+        for (let i = -50; i <= 50; i += 25) {
+            for (let j = -50; j <= 50; j += 25) {
+                if (Math.abs(i) < 18 && Math.abs(j) < 18) continue;
+                
+                const height = 4 + Math.random() * 6;
+                const pillar = createBox(i, 0, j, 4, height, 4, wallMat);
+
+                // Add Neon Glow Strips
+                const stripe = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.3, 4.1), neonMat);
+                stripe.position.set(i, height * 0.7, j);
+                scene.add(stripe);
+            }
         }
 
-        for (let i = 0; i < 8; i++) {
-            createTarget((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50);
-        }
+        const weaponGroup = new THREE.Group();
+        
+        // Carbine Gun Body
+        const gunBody = new THREE.Mesh(
+            new THREE.BoxGeometry(0.12, 0.18, 0.7),
+            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.2, metalness: 0.8 })
+        );
+        gunBody.position.set(0.22, -0.22, -0.45);
+        weaponGroup.add(gunBody);
 
-        // Player Physics & Controls State
+        // Gun Barrel
+        const barrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.02, 0.02, 0.4),
+            new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 })
+        );
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(0.22, -0.19, -0.85);
+        weaponGroup.add(barrel);
+
+        // Holo Sight
+        const sight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.06, 0.08, 0.12),
+            neonMat
+        );
+        sight.position.set(0.22, -0.1, -0.5);
+        weaponGroup.add(sight);
+
+        camera.add(weaponGroup);
+        scene.add(camera);
+
+        // Muzzle Flash Light
+        const muzzleLight = new THREE.PointLight(0x00f0ff, 0, 5);
+        muzzleLight.position.set(0.22, -0.19, -1.0);
+        camera.add(muzzleLight);
+
         const player = {
             height: 1.7,
-            speed: 0.15,
+            crouchHeight: 0.9,
+            currentHeight: 1.7,
+            position: new THREE.Vector3(0, 1.7, 25),
             velocity: new THREE.Vector3(),
+            speed: 0.18,
+            slideSpeed: 0.38,
             isGrounded: true,
-            score: 0,
-            health: 100
+            isSliding: false,
+            isClimbing: false,
+            isADS: false,
+            slideTimer: 0,
+            ammo: 28,
+            score: 0
         };
 
-        const keys = { w: false, a: false, s: false, d: false, space: false };
-
-        // Mouse Pitch / Yaw angles
+        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
         let yaw = 0;
         let pitch = 0;
+        let isMouseDown = false;
+        let shootCooldown = 0;
 
         // Key Listeners
         window.addEventListener('keydown', (e) => {
@@ -213,7 +352,18 @@
             if (e.code === 'KeyA') keys.a = true;
             if (e.code === 'KeyS') keys.s = true;
             if (e.code === 'KeyD') keys.d = true;
-            if (e.code === 'Space') keys.space = true;
+            
+            if (e.code === 'Space') {
+                keys.space = true;
+                handleJumpOrClimb();
+            }
+
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+                keys.shift = true;
+                if (keys.w && player.isGrounded && !player.isSliding) {
+                    startSliding();
+                }
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -222,9 +372,47 @@
             if (e.code === 'KeyS') keys.s = false;
             if (e.code === 'KeyD') keys.d = false;
             if (e.code === 'Space') keys.space = false;
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
         });
 
-        // Pointer Lock (Mouse Aiming Controls)
+        function startSliding() {
+            player.isSliding = true;
+            player.slideTimer = 45; // Sliding momentum duration
+            showActionHint("SLIDING");
+        }
+
+        function handleJumpOrClimb() {
+            // Apex Wall Climb Mechanism
+            if (!player.isGrounded) {
+                // Check if facing a wall directly
+                const raycaster = new THREE.Raycaster();
+                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                raycaster.set(camera.position, forward);
+                const intersects = raycaster.intersectObjects(mapColliders.map(c => c.mesh));
+
+                if (intersects.length > 0 && intersects[0].distance < 1.2) {
+                    player.velocity.y = 8.5; // Climb impulse
+                    player.isClimbing = true;
+                    showActionHint("WALL CLIMB");
+                    return;
+                }
+            }
+
+            // Normal or Slide-Hop Jump
+            if (player.isGrounded) {
+                player.velocity.y = player.isSliding ? 10.0 : 8.5; // Slide hop boost
+                player.isGrounded = false;
+                if (player.isSliding) showActionHint("SLIDE HOP!");
+            }
+        }
+
+        function showActionHint(text) {
+            const el = document.getElementById('action-hint');
+            el.innerText = text;
+            el.style.opacity = '1';
+            setTimeout(() => { el.style.opacity = '0'; }, 600);
+        }
+
         const startOverlay = document.getElementById('start-overlay');
         const startBtn = document.getElementById('start-btn');
 
@@ -243,78 +431,161 @@
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement !== document.body) return;
 
-            const sensitivity = 0.002;
-            yaw -= e.movementX * sensitivity;
-            pitch -= e.movementY * sensitivity;
-
-            // Clamp pitch to avoid screen flip
-            pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+            const sens = player.isADS ? 0.001 : 0.0022;
+            yaw -= e.movementX * sens;
+            pitch -= e.movementY * sens;
+            pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, pitch));
         });
 
-        // Weapon / Shooting Logic
-        const bullets = [];
         window.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement !== document.body || e.button !== 0) return;
-
-            shootRaycast();
+            if (document.pointerLockElement !== document.body) return;
+            if (e.button === 0) isMouseDown = true; // Fire
+            if (e.button === 2) player.isADS = true; // ADS
         });
 
-        function shootRaycast() {
-            // Raycast from Camera Center
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) isMouseDown = false;
+            if (e.button === 2) player.isADS = false;
+        });
+
+        // Prevent Right Click Context Menu
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        const enemies = [];
+        const enemyGeo = new THREE.CapsuleGeometry(0.45, 1.3, 4, 8);
+        const enemyMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x7f1d1d, roughness: 0.3 });
+
+        function createEnemyBot(x, z) {
+            const botGroup = new THREE.Group();
+            
+            // Bot Body Mesh
+            const mesh = new THREE.Mesh(enemyGeo, enemyMat);
+            mesh.position.y = 1.1;
+            mesh.castShadow = true;
+            botGroup.add(mesh);
+
+            // Apex Shield Visual Indicator Ring
+            const ringGeo = new THREE.TorusGeometry(0.6, 0.03, 8, 24);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 0.1;
+            botGroup.add(ring);
+
+            botGroup.position.set(x, 0, z);
+
+            // AI State
+            botGroup.userData = {
+                health: 100,
+                directionAngle: Math.random() * Math.PI * 2,
+                changeTimer: 0,
+                speed: 0.06 + Math.random() * 0.08,
+                strafeSpeed: (Math.random() - 0.5) * 0.04
+            };
+
+            scene.add(botGroup);
+            enemies.push(botGroup);
+        }
+
+        // Spawn 8 Moving Apex Bots
+        for (let i = 0; i < 8; i++) {
+            createEnemyBot((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+        }
+
+        function fireWeapon() {
+            if (player.ammo <= 0) return;
+            player.ammo--;
+            document.getElementById('ammo-count').innerText = player.ammo;
+
+            // Flash effect
+            muzzleLight.intensity = 3.0;
+            setTimeout(() => { muzzleLight.intensity = 0; }, 40);
+
+            // Recoil Animation
+            weaponGroup.position.z += 0.05;
+            pitch += 0.005;
+
+            // Raycasting for hits
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            const intersects = raycaster.intersectObjects(targets);
+            const botMeshes = enemies.map(b => b.children[0]);
+            const intersects = raycaster.intersectObjects(botMeshes);
 
             if (intersects.length > 0) {
-                const hitObj = intersects[0].object;
-                
-                // Visual Flash on Hit
-                hitObj.material.color.setHex(0xffffff);
-                setTimeout(() => hitObj.material.color.setHex(0xef4444), 100);
+                const hitMesh = intersects[0].object;
+                const botGroup = hitMesh.parent;
 
-                // Respawn target position
-                hitObj.position.x = (Math.random() - 0.5) * 50;
-                hitObj.position.z = (Math.random() - 0.5) * 50;
+                // Damage Calculation
+                const isHeadshot = intersects[0].point.y > botGroup.position.y + 1.4;
+                const damage = isHeadshot ? 45 : 18;
 
-                // Score Update
-                player.score += 100;
-                document.getElementById('score-text').innerText = player.score;
+                botGroup.userData.health -= damage;
+
+                // Hit Flash
+                hitMesh.material.color.setHex(0xffffff);
+                setTimeout(() => hitMesh.material.color.setHex(0xef4444), 80);
+
+                // Display Damage Number on Screen
+                spawnDamageNumber(intersects[0].point, damage, isHeadshot);
+
+                // Bot Destroy / Respawn
+                if (botGroup.userData.health <= 0) {
+                    player.score += 100;
+                    document.getElementById('score-text').innerText = player.score;
+                    
+                    // Respawn elsewhere
+                    botGroup.position.set((Math.random() - 0.5) * 90, 0, (Math.random() - 0.5) * 90);
+                    botGroup.userData.health = 100;
+                }
             }
+        }
+
+        function spawnDamageNumber(worldPos, damage, isHeadshot) {
+            const screenPos = worldPos.clone().project(camera);
+            const x = (screenPos.x * .5 + .5) * window.innerWidth;
+            const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
+
+            const el = document.createElement('div');
+            el.className = 'damage-number';
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.innerText = damage;
+            if (isHeadshot) el.style.color = '#ef4444'; // Red for headshot
+
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
         }
 
         const remotePlayers = {};
 
         function setupMultiplayerSync() {
             if (!currentUser) return;
-
             const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
 
-            // Send local player state to Firestore periodically
             setInterval(() => {
                 if (!currentUser) return;
                 const playerRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', currentUser.uid);
                 setDoc(playerRef, {
                     x: camera.position.x,
-                    y: camera.position.y - player.height,
+                    y: camera.position.y - player.currentHeight,
                     z: camera.position.z,
                     yaw: yaw,
+                    isSliding: player.isSliding,
                     score: player.score,
                     updatedAt: Date.now()
                 }, { merge: true }).catch(() => {});
             }, 100);
 
-            // Listen for other players in realtime
             onSnapshot(playersCol, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     const id = change.doc.id;
-                    if (id === currentUser?.uid) return; // Skip self
+                    if (id === currentUser?.uid) return;
 
                     const data = change.doc.data();
 
                     if (change.type === 'added' || change.type === 'modified') {
                         if (!remotePlayers[id]) {
-                            // Create remote player mesh
                             const group = new THREE.Group();
                             const mesh = new THREE.Mesh(
                                 new THREE.CapsuleGeometry(0.4, 1.2, 4, 8),
@@ -325,9 +596,9 @@
                             scene.add(group);
                             remotePlayers[id] = group;
                         }
-                        // Update remote position
                         remotePlayers[id].position.set(data.x || 0, data.y || 0, data.z || 0);
                         remotePlayers[id].rotation.y = data.yaw || 0;
+                        remotePlayers[id].scale.y = data.isSliding ? 0.5 : 1.0;
                     }
 
                     if (change.type === 'removed') {
@@ -337,10 +608,8 @@
                         }
                     }
                 });
-            }, (error) => console.warn("Sync update error:", error));
+            }, (error) => console.warn("Sync error:", error));
         }
-
-        camera.position.set(0, player.height, 5);
 
         const clock = new THREE.Clock();
 
@@ -349,59 +618,102 @@
 
             const delta = Math.min(clock.getDelta(), 0.1);
 
-            // Update Camera Rotation (Yaw & Pitch)
+            // Update Aim Orientation
             const euler = new THREE.Euler(0, 0, 0, 'YXZ');
             euler.x = pitch;
             euler.y = yaw;
             camera.quaternion.setFromEuler(euler);
 
-            // Calculate Forward & Right Direction Vectors based on Yaw
+            // ADS FOV & Gun Positioning
+            const targetFOV = player.isADS ? 50 : (player.isSliding ? 82 : 75);
+            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.15);
+            camera.updateProjectionMatrix();
+
+            const targetGunPos = player.isADS ? new THREE.Vector3(0, -0.14, -0.35) : new THREE.Vector3(0.22, -0.22, -0.45);
+            weaponGroup.position.lerp(targetGunPos, 0.2);
+
+            // Firing Loop
+            shootCooldown -= delta;
+            if (isMouseDown && shootCooldown <= 0) {
+                fireWeapon();
+                shootCooldown = 0.11; // Apex automatic fire rate
+            }
+
+            // Direction Vectors
             const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
 
-            // WASD Movement
-            const moveDir = new THREE.Vector3();
-            if (keys.w) moveDir.add(forward);
-            if (keys.s) moveDir.sub(forward);
-            if (keys.d) moveDir.add(right);
-            if (keys.a) moveDir.sub(right);
+            // Sliding & Height Transition
+            if (player.isSliding) {
+                player.slideTimer--;
+                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.2);
+                camera.position.addScaledVector(forward, player.slideSpeed);
 
-            if (moveDir.lengthSq() > 0) {
-                moveDir.normalize();
-                camera.position.addScaledVector(moveDir, player.speed);
-            }
+                if (player.slideTimer <= 0) player.isSliding = false;
+            } else {
+                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.height, 0.2);
 
-            // Jump Physics
-            if (keys.space && player.isGrounded) {
-                player.velocity.y = 8.0;
-                player.isGrounded = false;
-            }
+                const moveDir = new THREE.Vector3();
+                if (keys.w) moveDir.add(forward);
+                if (keys.s) moveDir.sub(forward);
+                if (keys.d) moveDir.add(right);
+                if (keys.a) moveDir.sub(right);
 
-            // Gravity Update
-            if (!player.isGrounded) {
-                player.velocity.y -= 25.0 * delta;
-                camera.position.y += player.velocity.y * delta;
-
-                if (camera.position.y <= player.height) {
-                    camera.position.y = player.height;
-                    player.velocity.y = 0;
-                    player.isGrounded = true;
+                if (moveDir.lengthSq() > 0) {
+                    moveDir.normalize();
+                    camera.position.addScaledVector(moveDir, player.speed);
                 }
             }
 
-            // Render 3D Scene
+            // Vertical Physics (Gravity & Jump)
+            if (!player.isGrounded) {
+                player.velocity.y -= 26.0 * delta;
+                camera.position.y += player.velocity.y * delta;
+
+                if (camera.position.y <= player.currentHeight) {
+                    camera.position.y = player.currentHeight;
+                    player.velocity.y = 0;
+                    player.isGrounded = true;
+                    player.isClimbing = false;
+                }
+            } else {
+                camera.position.y = player.currentHeight;
+            }
+
+            // Dynamic Enemy AI Movement
+            enemies.forEach((bot) => {
+                const data = bot.userData;
+                data.changeTimer -= delta;
+
+                if (data.changeTimer <= 0) {
+                    data.directionAngle = Math.random() * Math.PI * 2;
+                    data.changeTimer = 1.0 + Math.random() * 2.0;
+                }
+
+                // Smooth Rotate & Move Forward
+                bot.rotation.y = THREE.MathUtils.lerp(bot.rotation.y, data.directionAngle, 0.08);
+                const botForward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), bot.rotation.y);
+                bot.position.addScaledVector(botForward, data.speed);
+
+                // Bounds Checking
+                if (Math.abs(bot.position.x) > 70) bot.position.x *= -0.9;
+                if (Math.abs(bot.position.z) > 70) bot.position.z *= -0.9;
+            });
+
+            // Render
             renderer.render(scene, camera);
         }
 
-        // Window Resize Handling
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Launch Game Loop
-        animate();
+        // Start Loop on Window Load
+        window.onload = () => {
+            animate();
+        };
     </script>
 </body>
 </html>
