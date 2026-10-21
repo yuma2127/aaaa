@@ -99,7 +99,7 @@
                     <div class="text-[11px] text-amber-200 mt-0.5 space-y-0.5 font-semibold">
                         <p><span class="text-amber-400">[W]前進維持</span>: 5歩連続移動でダッシュ発動 (離すと即リセット)</p>
                         <p><span class="text-amber-400">[Shift] / [C]</span>: しゃがみ / 助走時は高速スライディング</p>
-                        <p><span class="text-amber-400">[左クリック]</span>: 射撃 | <span class="text-amber-400">[右クリック]</span>: 精密ADS | <span class="text-cyan-400">[Space]</span>: 壁登り・跳躍</p>
+                        <p><span class="text-amber-400">[Enter] / [左クリック]</span>: 射撃 | <span class="text-amber-400">[P] / [右クリック]</span>: 精密ADS | <span class="text-cyan-400">[Space]</span>: 壁登り・跳躍</p>
                     </div>
                 </div>
             </div>
@@ -187,11 +187,11 @@
                 </div>
                 <div class="flex justify-between border-b border-slate-800 pb-1">
                     <span class="text-amber-400">ホロADS照準</span>
-                    <span class="font-bold text-white">[右クリック] レティクルを画面中央固定</span>
+                    <span class="font-bold text-white">[P]キー または [右クリック]</span>
                 </div>
                 <div class="flex justify-between">
-                    <span class="text-amber-400">ターゲット敵</span>
-                    <span class="font-bold text-white">シールド(50) + HP(100)所持の人型</span>
+                    <span class="text-amber-400">射撃</span>
+                    <span class="font-bold text-white">[Enter]キー または [左クリック]</span>
                 </div>
             </div>
 
@@ -460,6 +460,7 @@
         let yaw = 0;
         let pitch = 0;
         let isMouseDown = false;
+        let isEnterDown = false;
         let shootCooldown = 0;
 
         window.addEventListener('keydown', (e) => {
@@ -468,6 +469,16 @@
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
             if (e.code === 'KeyR') reloadWeapon();
+
+            // Enterキーで射撃
+            if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                isEnterDown = true;
+            }
+
+            // Pキーでスコープ覗き(ADS)
+            if (e.code === 'KeyP') {
+                player.isADS = true;
+            }
 
             if (e.code === 'Space') {
                 keys.space = true;
@@ -490,6 +501,17 @@
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
+
+            // Enterキー離したとき
+            if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                isEnterDown = false;
+            }
+
+            // Pキー離したとき
+            if (e.code === 'KeyP') {
+                player.isADS = false;
+            }
+
             if (e.code === 'Space') keys.space = false;
             if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') {
                 keys.shift = false;
@@ -919,7 +941,7 @@
 
             // Auto Firing
             shootCooldown -= delta;
-            if (isMouseDown && shootCooldown <= 0) {
+            if ((isMouseDown || isEnterDown) && shootCooldown <= 0) {
                 fireWeapon();
                 shootCooldown = 0.055;
             }
@@ -940,13 +962,14 @@
 
             // --- 5-STEP RUN-UP SPRINT MECHANIC ---
             // Requirement: W key MUST be held continuously. Releasing W resets steps instantly.
-            if (keys.w && player.isGrounded && !player.isSliding) {
+            // ONLY allow run-up sprint if player is moving forward, grounded, NOT crouching, and NOT sliding
+            if (keys.w && player.isGrounded && !player.isCrouching && !player.isSliding) {
                 player.runDistance += delta * 14; // Requires ~5 steps of forward running
                 if (player.runDistance >= 15) {
                     player.isSprinting = true;
                 }
-            } else if (!keys.w && !player.isSliding) {
-                // Instantly reset if forward movement stops!
+            } else if (!keys.w || player.isCrouching) {
+                // Instantly reset if forward movement stops or player is crouching!
                 player.runDistance = 0;
                 player.isSprinting = false;
             }
