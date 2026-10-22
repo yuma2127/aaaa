@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apex-Style 3D FPS Arena - Combat & Athletics</title>
+    <title>Tactical PvP Arena 3D - Online Multiplayer FPS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -11,8 +11,8 @@
             margin: 0;
             overflow: hidden;
             user-select: none;
-            background-color: #1e1b4b;
-            font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+            background-color: #090d16;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         #crosshair {
             position: absolute;
@@ -21,40 +21,35 @@
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 10;
-            transition: opacity 0.1s ease;
         }
-        /* Apex-Style Dynamic Damage Numbers Floating Effect */
         .damage-number {
             position: absolute;
-            color: #facc15;
             font-weight: 900;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             text-shadow: 0 0 8px rgba(0,0,0,0.9);
             pointer-events: none;
-            animation: floatUp 0.75s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+            animation: floatUp 0.6s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
             z-index: 25;
         }
         @keyframes floatUp {
             0% { opacity: 1; transform: translateY(0) scale(1.3); }
-            100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
+            100% { opacity: 0; transform: translateY(-35px) scale(0.8); }
         }
-        /* Apex Skewed Panels for Futuristic HUD */
-        .apex-panel {
-            transform: skewX(-12deg);
+        .hud-panel {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
         }
-        .apex-panel-inner {
-            transform: skewX(12deg);
+        .hit-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            background: radial-gradient(circle, transparent 50%, rgba(239, 68, 68, 0.5) 100%);
+            opacity: 0;
+            transition: opacity 0.12s ease;
         }
-        canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 0;
-            display: block;
-        }
-        .enemy-hud {
+        .player-nameplate {
             position: absolute;
             transform: translate(-50%, -100%);
             pointer-events: none;
@@ -63,172 +58,215 @@
             flex-direction: column;
             align-items: center;
             gap: 2px;
-            width: 60px;
-        }
-        .hit-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            z-index: 20;
-            background: radial-gradient(circle, transparent 60%, rgba(239, 68, 68, 0.4) 100%);
-            opacity: 0;
-            transition: opacity 0.15s ease;
+            white-space: nowrap;
         }
     </style>
 </head>
 <body class="bg-slate-950 text-white overflow-hidden select-none">
 
-    <!-- Damage Screen Vignette Flash -->
+    <!-- 被弾エフェクト -->
     <div id="hit-flash" class="hit-overlay"></div>
 
-    <!-- Apex Crosshair & Mantle Prompt -->
+    <!-- クロスヘア -->
     <div id="crosshair" class="flex flex-col items-center justify-center">
-        <svg id="crosshair-svg" width="32" height="32" viewBox="0 0 36 36" fill="none" class="drop-shadow-[0_0_6px_rgba(245,158,11,0.9)]">
-            <circle cx="18" cy="18" r="1.5" fill="#fbbf24" />
-            <line x1="18" y1="4" x2="18" y2="10" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" />
-            <line x1="18" y1="26" x2="18" y2="32" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" />
-            <line x1="4" y1="18" x2="10" y2="18" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" />
-            <line x1="26" y1="18" x2="32" y2="18" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" />
+        <svg id="crosshair-svg" width="28" height="28" viewBox="0 0 36 36" fill="none" class="drop-shadow-[0_0_6px_rgba(59,130,246,0.9)]">
+            <circle cx="18" cy="18" r="1.5" fill="#60a5fa" />
+            <line x1="18" y1="4" x2="18" y2="10" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
+            <line x1="18" y1="26" x2="18" y2="32" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
+            <line x1="4" y1="18" x2="10" y2="18" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
+            <line x1="26" y1="18" x2="32" y2="18" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
         </svg>
-
-        <!-- Apex Mantle Jump Prompt -->
-        <div id="mantle-prompt" class="hidden mt-3 flex flex-col items-center animate-bounce">
-            <div class="px-2.5 py-0.5 bg-amber-500 text-slate-950 text-[10px] font-black rounded border border-yellow-300 shadow-lg">
-                [SPACE] MANTLE BOOST!
-            </div>
-        </div>
     </div>
 
-    <!-- HUD Overlay Layer -->
-    <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-5 hidden">
+    <!-- HUD (ゲーム画面オーバーレイ) -->
+    <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-4 hidden">
         
-        <!-- Top Apex Bar -->
+        <!-- 上部ヘッダー (スコアボード & ルーム情報) -->
         <div class="flex justify-between items-start">
-            <div class="apex-panel bg-slate-900/90 border-l-4 border-amber-400 px-4 py-2.5 rounded-r-lg shadow-2xl backdrop-blur-md">
-                <div class="apex-panel-inner">
-                    <h1 id="mode-title-text" class="text-base font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
-                        APEX COMBAT MODE
-                    </h1>
-                    <div class="text-[11px] text-amber-200 mt-0.5 space-y-0.5 font-semibold">
-                        <p><span class="text-amber-400">[W/↑]</span>: 前進助走 (5歩でスプリント発動)</p>
-                        <p><span class="text-amber-400">[Shift/C]</span>: しゃがみ/助走スライド | <span class="text-amber-400">[R]</span>: リロード</p>
-                        <p><span class="text-amber-400">[Enter/左クリック]</span>: 射撃 | <span class="text-amber-400">[P/右クリック]</span>: 精密ADS | <span class="text-cyan-400">[Space]</span>: 壁登り</p>
+            
+            <!-- ルーム & チームステータス -->
+            <div class="hud-panel p-3 rounded-xl flex items-center gap-4">
+                <div>
+                    <div id="player-team-badge" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                        BLUE TEAM
                     </div>
+                    <div id="room-code-display" class="text-xs text-slate-400 font-semibold mt-1">ROOM: LOCAL</div>
+                </div>
+                <div class="h-8 w-[1px] bg-slate-700"></div>
+                <div class="text-[11px] text-slate-300">
+                    <p><span class="text-amber-400">[W/A/S/D]</span>: 移動 | <span class="text-amber-400">[Shift/C]</span>: スライディング</p>
+                    <p><span class="text-amber-400">[Enter/左クリック]</span>: 射撃 | <span class="text-amber-400">[P/右クリック]</span>: ADS | <span class="text-amber-400">[R]</span>: リロード</p>
                 </div>
             </div>
 
-            <!-- Round / Athletic Stat Badge -->
-            <div class="apex-panel bg-slate-900/90 border-r-4 border-amber-400 px-4 py-2 rounded-l-lg shadow-xl backdrop-blur-md">
-                <div class="apex-panel-inner text-right">
-                    <p id="badge-label" class="text-[9px] text-amber-400 font-bold tracking-widest">ROUND 1 / 5</p>
-                    <p id="score-text" class="text-xl font-black text-white">ENEMIES LEFT: 0</p>
+            <!-- チームスコアボード (10キル先取) -->
+            <div class="hud-panel px-6 py-2 rounded-xl flex items-center gap-6">
+                <div class="text-center">
+                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">BLUE TEAM</p>
+                    <p id="score-blue" class="text-2xl font-black text-blue-400">0</p>
+                </div>
+                <div class="text-slate-500 font-black text-lg">VS</div>
+                <div class="text-center">
+                    <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest">RED TEAM</p>
+                    <p id="score-red" class="text-2xl font-black text-red-400">0</p>
                 </div>
             </div>
+
+            <!-- キルログ -->
+            <div id="kill-log" class="flex flex-col gap-1 items-end w-48 text-[11px]"></div>
         </div>
 
-        <!-- Action Center Hint -->
-        <div class="self-center flex flex-col items-center gap-1 mb-2">
-            <div id="action-hint" class="text-amber-300 font-black text-lg tracking-widest uppercase opacity-0 transition-opacity duration-200 drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]">
-                SLIDING
-            </div>
-        </div>
-
-        <!-- Bottom Status Bar -->
+        <!-- ミニマップ & 弾薬/体力 -->
         <div class="flex justify-between items-end">
-            <!-- Health & Shield Bars -->
-            <div class="w-72 space-y-1">
-                <div class="flex items-center gap-2">
-                    <span class="text-[9px] font-bold text-sky-400 w-10">SHIELD</span>
-                    <div class="w-1/2 bg-slate-950/80 h-2 rounded-sm p-0.5 border border-sky-500/30">
-                        <div id="shield-bar" class="bg-gradient-to-r from-sky-400 to-cyan-300 h-full w-full rounded-sm transition-all duration-150"></div>
+            <!-- HP & シールド -->
+            <div class="hud-panel p-3 rounded-xl w-64 space-y-2">
+                <div>
+                    <div class="flex justify-between text-[10px] font-bold text-sky-400 mb-1">
+                        <span>SHIELD</span>
+                        <span id="shield-val">100 / 100</span>
+                    </div>
+                    <div class="w-full bg-slate-900 h-2 rounded overflow-hidden">
+                        <div id="shield-bar" class="bg-sky-400 h-full w-full transition-all duration-150"></div>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[9px] font-bold text-emerald-400 w-10">HP</span>
-                    <div class="flex-1 bg-slate-950/80 h-3 rounded-sm p-0.5 border border-emerald-500/30">
-                        <div id="health-bar" class="bg-gradient-to-r from-emerald-500 to-teal-300 h-full w-full rounded-sm transition-all duration-150"></div>
+                <div>
+                    <div class="flex justify-between text-[10px] font-bold text-emerald-400 mb-1">
+                        <span>HEALTH</span>
+                        <span id="health-val">100 / 100</span>
+                    </div>
+                    <div class="w-full bg-slate-900 h-2.5 rounded overflow-hidden">
+                        <div id="health-bar" class="bg-emerald-400 h-full w-full transition-all duration-150"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Ammo Counter -->
-            <div class="apex-panel bg-slate-900/90 border-r-4 border-amber-400 px-5 py-2.5 rounded-l-xl shadow-2xl backdrop-blur-md text-right">
-                <div class="apex-panel-inner">
-                    <p class="text-[9px] text-amber-400 font-bold tracking-widest">SMG - TACTICAL</p>
-                    <div class="flex items-baseline justify-end gap-1">
-                        <span id="ammo-count" class="text-3xl font-black text-amber-400">27</span>
-                        <span class="text-slate-500 font-bold text-sm">/ ∞</span>
-                    </div>
+            <!-- 弾薬 & 武器情報 -->
+            <div class="hud-panel px-6 py-3 rounded-xl text-right">
+                <div id="weapon-type-display" class="text-[10px] text-amber-400 font-bold tracking-widest uppercase">ASSAULT RIFLE</div>
+                <div class="flex items-baseline justify-end gap-1">
+                    <span id="ammo-count" class="text-3xl font-black text-white">30</span>
+                    <span id="ammo-max" class="text-slate-500 font-bold text-sm">/ 30</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="enemy-huds-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
+    <!-- 他プレイヤーのネームプレート・HPバー用コンテナ -->
+    <div id="nametag-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
 
-    <!-- Mode Selection & Start Screen Overlay -->
-    <div id="start-overlay" class="absolute inset-0 bg-slate-950/20 backdrop-blur-[2px] flex flex-col items-center justify-center z-30 transition-all duration-300">
-        <div class="bg-slate-900/85 border border-amber-500/50 p-6 md:p-8 rounded-2xl max-w-lg w-[90%] text-center shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden backdrop-blur-md">
+    <!-- スタート & マルチプレイロビー画面 -->
+    <div id="start-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-30 transition-all duration-300">
+        <div class="bg-slate-900/90 border border-slate-700/80 p-8 rounded-2xl max-w-md w-[92%] text-center shadow-2xl relative">
             
-            <!-- Quick Lock & Play Button -->
-            <button id="btn-quick-preview" class="absolute top-3 right-3 text-slate-200 hover:text-white bg-slate-800/90 hover:bg-amber-500 hover:text-slate-950 p-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-600/80 shadow-md">
-                <svg class="w-4 h-4 text-amber-400 group-hover:text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                </svg>
-                画面プレビュー
-            </button>
-
-            <div class="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-2 border border-amber-400/50">
-                <svg class="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-3 border border-blue-400/40">
+                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </div>
 
-            <h2 class="text-2xl md:text-3xl font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-400 bg-clip-text text-transparent mb-0.5">
-                APEX ARENA SYSTEM
-            </h2>
-            <p class="text-amber-400/80 text-[10px] font-bold tracking-widest uppercase mb-4">SELECT GAME MODE TO PLAY</p>
+            <h1 class="text-2xl md:text-3xl font-black italic tracking-wider bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
+                TACTICAL PVP FPS
+            </h1>
+            <p class="text-slate-400 text-xs mt-1 mb-6">チーム対戦型 リアルタイムオンラインPvP</p>
 
-            <div class="space-y-3 mb-4">
-                <!-- Gunfight Mode Button -->
-                <button id="btn-mode-combat" class="w-full group bg-slate-800/80 hover:bg-amber-500 border border-amber-500/30 hover:border-amber-400 p-3.5 rounded-xl text-left transition-all duration-200">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="font-black text-base md:text-lg text-white group-hover:text-slate-950 italic">撃ち合いモード (5 ROUNDS)</span>
-                        <span class="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 group-hover:bg-slate-950 group-hover:text-amber-400 rounded">COMBAT</span>
-                    </div>
-                    <p class="text-xs text-slate-300 group-hover:text-slate-900 font-semibold">
-                        1〜5ラウンド制の決闘。各ラウンド(1〜5体)の敵を撃破！敵も反撃射撃してきます。
-                    </p>
-                </button>
-
-                <!-- Athletic Mode Button -->
-                <button id="btn-mode-athletic" class="w-full group bg-slate-800/80 hover:bg-cyan-500 border border-cyan-500/30 hover:border-cyan-400 p-3.5 rounded-xl text-left transition-all duration-200">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="font-black text-base md:text-lg text-white group-hover:text-slate-950 italic">アスレチックモード (PARKOUR)</span>
-                        <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 group-hover:bg-slate-950 group-hover:text-cyan-300 rounded">TRAINING</span>
-                    </div>
-                    <p class="text-xs text-slate-300 group-hover:text-slate-900 font-semibold">
-                        ジャンプ・壁登り・マントルブースト・スライディングを駆使して頂上ゴールを目指す！
-                    </p>
-                </button>
+            <!-- 勝敗結果バナー (非表示/ゲーム終了時) -->
+            <div id="results-banner" class="hidden mb-4 p-3 bg-slate-800/90 border border-amber-500/40 rounded-xl">
+                <p id="result-status" class="text-lg font-black text-amber-400">MATCH FINISHED</p>
+                <p id="result-stats" class="text-xs text-slate-300 mt-0.5">SCORE: 0 - 0</p>
             </div>
 
-            <!-- Game Results Banner (Hidden initially) -->
-            <div id="results-banner" class="hidden mb-3 p-3 bg-slate-950/80 border border-amber-400/50 rounded-xl">
-                <p id="result-status" class="text-lg font-black text-amber-400 italic">ROUND COMPLETE!</p>
-                <p id="result-stats" class="text-xs text-slate-300 font-bold mt-0.5">TOTAL SCORE: 0</p>
+            <!-- プレイヤーネーム入力 -->
+            <div class="mb-4 text-left">
+                <label class="text-[11px] font-bold text-slate-400 block mb-1">PLAYER NAME</label>
+                <input id="input-player-name" type="text" maxlength="12" value="Player1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold" />
             </div>
 
-            <p class="text-[11px] text-slate-400">※画面をクリックして操作を有効化（ESCでマウス解除）</p>
+            <!-- 武器選択 -->
+            <div class="mb-4 text-left">
+                <label class="text-[11px] font-bold text-slate-400 block mb-1">WEAPON TYPE</label>
+                <select id="select-weapon" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer">
+                    <option value="ar">Assault Rifle (バランス型)</option>
+                    <option value="smg">Submachine Gun (高連射・近距離)</option>
+                    <option value="shotgun">Shotgun (近接散弾)</option>
+                    <option value="sniper">Sniper Rifle (一撃必殺・低連射)</option>
+                </select>
+            </div>
+
+            <!-- ボットレベル設定 (1~9) -->
+            <div class="mb-5 text-left">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[11px] font-bold text-slate-400">BOT DIFFICULTY (LEVEL 1-9)</label>
+                    <span id="bot-level-display" class="text-xs font-black text-amber-400">LV 5: Normal</span>
+                </div>
+                <input id="input-bot-level" type="range" min="1" max="9" value="5" class="w-full accent-amber-400 cursor-pointer" />
+                <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
+                    <span>1: Easy</span>
+                    <span>5: Medium</span>
+                    <span>9: Insane</span>
+                </div>
+            </div>
+
+            <!-- ルーム入室・作成ボタン -->
+            <div class="space-y-3 mb-2">
+                <button id="btn-practice" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 py-3 rounded-xl font-bold text-sm text-white transition flex justify-center items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    VS ボット対戦スタート
+                </button>
+
+                <div class="relative my-3 flex items-center justify-center">
+                    <div class="w-full border-t border-slate-800"></div>
+                    <span class="absolute bg-slate-900 px-3 text-[10px] text-slate-500 font-bold uppercase">OR ONLINE PVP</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <input id="input-room-code" type="text" placeholder="ROOM CODE" class="w-2/3 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white uppercase tracking-wider font-mono focus:outline-none focus:border-blue-500" />
+                    <button id="btn-join-room" class="w-1/3 bg-blue-600 hover:bg-blue-500 py-2.5 rounded-xl font-black text-xs text-white transition">
+                        対戦参加
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'pvp-fps-arena';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let roomId = null;
+        let roomUnsubscribe = null;
+
+        async function initFirebase() {
+            if (!firebaseConfig) return;
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = userCred.user;
+                } else {
+                    const userCred = await signInAnonymously(auth);
+                    currentUser = userCred.user;
+                }
+            } catch (e) {
+                console.warn("Online mode fallback to local practice:", e);
+            }
+        }
+        initFirebase();
+
         // --- THREE.JS SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xd97706);
-        scene.fog = new THREE.FogExp2(0xd97706, 0.006);
+        scene.background = new THREE.Color(0x0f172a);
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.008);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -238,361 +276,194 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // Warm Sunlight
-        const ambientLight = new THREE.AmbientLight(0xffedd5, 1.2);
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0x94a3b8, 1.0);
         scene.add(ambientLight);
 
-        const sunLight = new THREE.DirectionalLight(0xffedd5, 2.0);
-        sunLight.position.set(60, 90, 40);
-        sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
-        scene.add(sunLight);
+        const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.8);
+        dirLight.position.set(40, 60, 20);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
 
-        // Materials
-        const sandMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.9 });
-        const rockMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9, flatShading: true });
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.3 });
-        const platformMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3, metalness: 0.7 });
-        const goalMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, roughness: 0.2 });
+        // Ground & Map Textures/Materials
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.2 });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.5 });
+        const blueBoxMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.4 });
+        const redBoxMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, metalness: 0.4 });
 
-        // Irregular Ground
-        const groundGeo = new THREE.PlaneGeometry(260, 260, 32, 32);
-        const ground = new THREE.Mesh(groundGeo, sandMat);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        scene.add(ground);
+        // Floor
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
 
-        // White Semi-Transparent Barrier Walls (Field Boundary)
-        const barrierMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
-        const mapSize = 240;
-        const wallHeight = 35;
-        
-        const northWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
-        northWall.position.set(0, wallHeight / 2, -mapSize / 2);
-        scene.add(northWall);
+        // Outer Boundary Walls
+        const mapSize = 150;
+        const wallH = 12;
+        const outerWallMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
 
-        const southWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
-        southWall.position.set(0, wallHeight / 2, mapSize / 2);
-        southWall.rotation.y = Math.PI;
-        scene.add(southWall);
+        const wallN = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
+        wallN.position.set(0, wallH/2, -mapSize/2); scene.add(wallN);
+        const wallS = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
+        wallS.position.set(0, wallH/2, mapSize/2); wallS.rotation.y = Math.PI; scene.add(wallS);
+        const wallE = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
+        wallE.position.set(mapSize/2, wallH/2, 0); wallE.rotation.y = -Math.PI/2; scene.add(wallE);
+        const wallW = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
+        wallW.position.set(-mapSize/2, wallH/2, 0); wallW.rotation.y = Math.PI/2; scene.add(wallW);
 
-        const eastWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
-        eastWall.position.set(mapSize / 2, wallHeight / 2, 0);
-        eastWall.rotation.y = -Math.PI / 2;
-        scene.add(eastWall);
+        // Map Objects Colliders
+        const colliders = [];
 
-        const westWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
-        westWall.position.set(-mapSize / 2, wallHeight / 2, 0);
-        westWall.rotation.y = Math.PI / 2;
-        scene.add(westWall);
-
-        // Colliders & Stage Objects
-        let mapColliders = [];
-        let stageObjects = [];
-
-        function clearStageObjects() {
-            stageObjects.forEach(obj => scene.remove(obj));
-            stageObjects = [];
-            mapColliders = [];
-        }
-
-        // Small Rock Generator with Small Hitboxes
-        function createSmallRock(x, z, size = 2) {
-            const geo = new THREE.DodecahedronGeometry(size, 0);
-            const mesh = new THREE.Mesh(geo, rockMat);
-            mesh.position.set(x, size * 0.6, z);
-            mesh.rotation.set(Math.random(), Math.random(), Math.random());
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            scene.add(mesh);
-            stageObjects.push(mesh);
-
-            mapColliders.push({
-                x, z, h: size * 1.2, w: size * 1.2, d: size * 1.2
-            });
-        }
-
-        function createWallObstacle(x, z, w, h, d) {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+        function addBoxObstacle(x, z, w, h, d, mat = wallMat) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             mesh.position.set(x, h / 2, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
-            stageObjects.push(mesh);
 
-            mapColliders.push({ x, z, h, w, d });
-        }
-
-        function createPlatform(x, y, z, w, h, d, isGoal = false) {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), isGoal ? goalMat : platformMat);
-            mesh.position.set(x, y + h / 2, z);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            scene.add(mesh);
-            stageObjects.push(mesh);
-
-            mapColliders.push({ x, z, y, h: y + h, w, d, isPlatform: true });
+            colliders.push({
+                minX: x - w / 2 - 0.5, maxX: x + w / 2 + 0.5,
+                minZ: z - d / 2 - 0.5, maxZ: z + d / 2 + 0.5,
+                height: h
+            });
             return mesh;
         }
 
-        // --- REALISTIC WEAPON & HAND MODEL (R-99 TACTICAL) ---
+        // Build Tactical Arena Layout
+        function buildArena() {
+            addBoxObstacle(0, 0, 10, 4, 20, blueBoxMat);
+            addBoxObstacle(-25, 10, 14, 3.5, 6, redBoxMat);
+            addBoxObstacle(25, -10, 14, 3.5, 6, redBoxMat);
+
+            addBoxObstacle(-18, -20, 6, 3, 6, wallMat);
+            addBoxObstacle(18, 20, 6, 3, 6, wallMat);
+
+            addBoxObstacle(-35, -35, 12, 5, 12, wallMat);
+            addBoxObstacle(35, 35, 12, 5, 12, wallMat);
+            addBoxObstacle(-35, 35, 12, 5, 12, wallMat);
+            addBoxObstacle(35, -35, 12, 5, 12, wallMat);
+        }
+        buildArena();
+
+        // --- WEAPON CONFIGURATIONS ---
+        const WEAPONS = {
+            ar: { name: "ASSAULT RIFLE", ammo: 30, damage: 22, headDamage: 40, fireRate: 0.1, bullets: 1, spread: 0.015, color: 0x38bdf8 },
+            smg: { name: "SUBMACHINE GUN", ammo: 40, damage: 14, headDamage: 25, fireRate: 0.06, bullets: 1, spread: 0.035, color: 0xa855f7 },
+            shotgun: { name: "SHOTGUN", ammo: 8, damage: 12, headDamage: 20, fireRate: 0.75, bullets: 8, spread: 0.08, color: 0xf97316 },
+            sniper: { name: "SNIPER RIFLE", ammo: 5, damage: 95, headDamage: 180, fireRate: 1.2, bullets: 1, spread: 0.002, color: 0xef4444 }
+        };
+
+        let currentWeapon = WEAPONS.ar;
+
+        // --- WEAPON MODEL ---
         const weaponGroup = new THREE.Group();
 
-        // Hands (Detailed arms)
-        const armMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8 });
-        const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45), armMat);
-        leftArm.rotation.set(Math.PI / 3, -0.2, -0.4);
-        leftArm.position.set(-0.15, -0.28, -0.38);
-        weaponGroup.add(leftArm);
-
-        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.45), armMat);
-        rightArm.rotation.set(Math.PI / 4, 0.1, 0.2);
-        rightArm.position.set(0.18, -0.28, -0.35);
-        weaponGroup.add(rightArm);
-
-        // Gun Receiver Body
-        const r99Body = new THREE.Mesh(
-            new THREE.BoxGeometry(0.08, 0.14, 0.55),
-            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.2, metalness: 0.8 })
+        const arBody = new THREE.Mesh(
+            new THREE.BoxGeometry(0.07, 0.12, 0.65),
+            new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2, metalness: 0.8 })
         );
-        r99Body.position.set(0.16, -0.20, -0.45);
-        weaponGroup.add(r99Body);
+        arBody.position.set(0.18, -0.18, -0.45);
+        weaponGroup.add(arBody);
 
-        // Magazine
-        const r99Mag = new THREE.Mesh(
-            new THREE.BoxGeometry(0.05, 0.22, 0.07),
-            new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 })
+        const arBarrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.015, 0.015, 0.4),
+            new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9 })
         );
-        r99Mag.rotation.x = -Math.PI / 8;
-        r99Mag.position.set(0.16, -0.30, -0.42);
-        weaponGroup.add(r99Mag);
+        arBarrel.rotation.x = Math.PI / 2;
+        arBarrel.position.set(0.18, -0.15, -0.8);
+        weaponGroup.add(arBarrel);
 
-        // Barrel
-        const r99Barrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.02, 0.02, 0.35),
-            new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.9 })
+        const sightMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.04, 0.05, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 })
         );
-        r99Barrel.rotation.x = Math.PI / 2;
-        r99Barrel.position.set(0.16, -0.16, -0.72);
-        weaponGroup.add(r99Barrel);
+        sightMesh.position.set(0.18, -0.09, -0.45);
+        weaponGroup.add(sightMesh);
 
-        // Sight Ring
-        const scopeGroup = new THREE.Group();
-        const scopeRing = new THREE.Mesh(
-            new THREE.TorusGeometry(0.042, 0.007, 8, 24),
-            new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 })
+        const reticleMesh = new THREE.Mesh(
+            new THREE.CircleGeometry(0.004, 12),
+            new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
         );
-        scopeRing.position.set(0.16, -0.06, -0.48);
-        scopeGroup.add(scopeRing);
+        reticleMesh.position.set(0.18, -0.09, -0.491);
+        weaponGroup.add(reticleMesh);
 
-        // Reticle
-        const holoMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.95 });
-        const holoDot = new THREE.Mesh(new THREE.CircleGeometry(0.003, 12), holoMat);
-        holoDot.position.set(0.16, -0.06, -0.481);
-        scopeGroup.add(holoDot);
-
-        weaponGroup.add(scopeGroup);
         camera.add(weaponGroup);
         scene.add(camera);
 
-        const muzzleLight = new THREE.PointLight(0xf59e0b, 0, 5);
-        muzzleLight.position.set(0.16, -0.16, -0.85);
+        const muzzleLight = new THREE.PointLight(0x38bdf8, 0, 4);
+        muzzleLight.position.set(0.18, -0.15, -0.9);
         camera.add(muzzleLight);
 
         // --- PLAYER STATE ---
         const player = {
+            id: 'local_' + Math.random().toString(36).substr(2, 6),
+            name: 'Player1',
+            team: 'blue',
             height: 1.7,
-            crouchHeight: 0.85,
+            crouchHeight: 0.9,
             currentHeight: 1.7,
-            position: new THREE.Vector3(0, 1.7, 30),
+            position: new THREE.Vector3(0, 1.7, 40),
             velocity: new THREE.Vector3(),
-            baseSpeed: 0.14,
-            sprintSpeed: 0.28,
-            slideSpeed: 0.42,
+            baseSpeed: 0.15,
+            initialSlideSpeed: 0.45,
+            currentSlideSpeed: 0,
             isGrounded: true,
-            isCrouching: false,
             isSliding: false,
-            isClimbing: false,
-            isMantleReady: false,
-            mantleTimer: 0,
-            isADS: false,
             slideTimer: 0,
-            ammo: 27,
-            maxAmmo: 27,
-            isReloading: false,
+            slideDuration: 5.0,
+            isADS: false,
             health: 100,
             shield: 100,
-            score: 0,
-            runDistance: 0,
-            isSprinting: false,
-            radius: 0.55
+            ammo: 30,
+            maxAmmo: 30,
+            isReloading: false
         };
 
-        camera.position.copy(player.position);
+        let killsBlue = 0;
+        let killsRed = 0;
+        let botLevel = 5;
 
-        let currentMode = null;
-        let currentRound = 1;
-        let totalEnemiesInRound = 0;
-
-        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+        // Key & Controls
+        const keys = { w: false, a: false, s: false, d: false };
         let yaw = 0;
         let pitch = 0;
         let isMouseDown = false;
         let isEnterDown = false;
         let shootCooldown = 0;
 
-        // Key Listeners
         window.addEventListener('keydown', (e) => {
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
-            if (e.code === 'KeyR') reloadWeapon();
 
+            if (e.code === 'KeyR') reloadWeapon();
             if (e.code === 'Enter' || e.code === 'NumpadEnter') isEnterDown = true;
             if (e.code === 'KeyP') player.isADS = true;
 
-            if (e.code === 'Space') {
-                keys.space = true;
-                handleJumpOrClimbOrMantle();
+            if (e.code === 'Space' && player.isGrounded) {
+                player.velocity.y = 8.5;
+                player.isGrounded = false;
+                player.isSliding = false;
             }
 
-            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') {
-                keys.shift = true;
-                handleCrouchOrSlide();
+            if ((e.code === 'ShiftLeft' || e.code === 'KeyC') && player.isGrounded && keys.w && !player.isSliding) {
+                player.isSliding = true;
+                player.slideTimer = 0;
+                player.currentSlideSpeed = player.initialSlideSpeed;
             }
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW' || e.code === 'ArrowUp') {
-                keys.w = false;
-                player.runDistance = 0;
-                player.isSprinting = false;
-            }
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = false;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
 
             if (e.code === 'Enter' || e.code === 'NumpadEnter') isEnterDown = false;
             if (e.code === 'KeyP') player.isADS = false;
-            if (e.code === 'Space') keys.space = false;
-            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') {
-                keys.shift = false;
-                player.isCrouching = false;
-            }
-        });
-
-        function handleCrouchOrSlide() {
-            if (player.isGrounded) {
-                if (player.isSprinting) {
-                    player.isSliding = true;
-                    player.slideTimer = 45;
-                    showActionHint("SUPER SLIDE!");
-                } else {
-                    player.isCrouching = true;
-                    showActionHint("CROUCH");
-                }
-            }
-        }
-
-        function reloadWeapon() {
-            if (player.isReloading || player.ammo === player.maxAmmo) return;
-            player.isReloading = true;
-            showActionHint("RELOADING...");
-
-            const startRot = weaponGroup.rotation.x;
-            const startMagY = r99Mag.position.y;
-
-            let elapsed = 0;
-            const reloadInterval = setInterval(() => {
-                elapsed += 0.05;
-                if (elapsed < 0.6) {
-                    weaponGroup.rotation.x = startRot + 0.35;
-                    r99Mag.position.y = startMagY - 0.12;
-                } else if (elapsed < 1.3) {
-                    weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, startRot, 0.2);
-                    r99Mag.position.y = THREE.MathUtils.lerp(r99Mag.position.y, startMagY, 0.3);
-                } else {
-                    clearInterval(reloadInterval);
-                    weaponGroup.rotation.x = startRot;
-                    r99Mag.position.y = startMagY;
-                    player.ammo = player.maxAmmo;
-                    updateHUD();
-                    player.isReloading = false;
-                }
-            }, 50);
-        }
-
-        function handleJumpOrClimbOrMantle() {
-            if (player.isMantleReady) {
-                player.velocity.y = 12.0;
-                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                player.velocity.addScaledVector(forward, 14);
-                
-                player.isMantleReady = false;
-                player.isClimbing = false;
-                hideMantlePrompt();
-                showActionHint("⚡ MANTLE BOOST! ⚡");
-                return;
-            }
-
-            if (!player.isGrounded) {
-                const raycaster = new THREE.Raycaster();
-                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                raycaster.set(camera.position, forward);
-                const intersects = raycaster.intersectObjects(stageObjects);
-
-                if (intersects.length > 0 && intersects[0].distance < 1.4) {
-                    player.velocity.y = 8.5;
-                    player.isClimbing = true;
-                    showActionHint("WALL CLIMB");
-
-                    setTimeout(() => { triggerMantleWindow(); }, 300);
-                    return;
-                }
-            }
-
-            if (player.isGrounded) {
-                player.velocity.y = player.isSliding ? 10.5 : 8.5;
-                player.isGrounded = false;
-                player.isCrouching = false;
-                if (player.isSliding) showActionHint("SLIDE HOP!");
-            }
-        }
-
-        function triggerMantleWindow() {
-            player.isMantleReady = true;
-            player.mantleTimer = 30;
-            showMantlePrompt();
-        }
-
-        function showMantlePrompt() {
-            const prompt = document.getElementById('mantle-prompt');
-            if (prompt) prompt.classList.remove('hidden');
-        }
-
-        function hideMantlePrompt() {
-            const prompt = document.getElementById('mantle-prompt');
-            if (prompt) prompt.classList.add('hidden');
-        }
-
-        function showActionHint(text) {
-            const el = document.getElementById('action-hint');
-            if (el) {
-                el.innerText = text;
-                el.style.opacity = '1';
-                setTimeout(() => { el.style.opacity = '0'; }, 650);
-            }
-        }
-
-        // Pointer Lock
-        document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement !== document.body) return;
-            const sens = player.isADS ? 0.0012 : 0.0024;
-            yaw -= e.movementX * sens;
-            pitch -= e.movementY * sens;
-            pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, pitch));
         });
 
         window.addEventListener('mousedown', (e) => {
@@ -606,88 +477,139 @@
             if (e.button === 2) player.isADS = false;
         });
 
-        window.addEventListener('contextmenu', e => e.preventDefault());
+        window.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === document.body) {
+                const sensitivity = player.isADS ? 0.0012 : 0.0022;
+                yaw -= e.movementX * sensitivity;
+                pitch -= e.movementY * sensitivity;
+                pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+            }
+        });
 
-        // --- ENEMIES & HUDS ---
-        const enemies = [];
-        const hudsContainer = document.getElementById('enemy-huds-container');
+        function reloadWeapon() {
+            if (player.isReloading || player.ammo === player.maxAmmo) return;
+            player.isReloading = true;
+            weaponGroup.rotation.x = -0.5;
 
-        const armorMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 });
-        const jointMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+            setTimeout(() => {
+                player.ammo = player.maxAmmo;
+                player.isReloading = false;
+                weaponGroup.rotation.x = 0;
+                updateHUD();
+            }, 1200);
+        }
 
-        function createEnemyBot(x, z) {
-            const botGroup = new THREE.Group();
+        // --- REMOTE PLAYERS & HUMANOID BOT CREATION ---
+        const remotePlayers = new Map();
+        const nametagContainer = document.getElementById('nametag-container');
 
-            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.4), armorMat);
-            chest.position.y = 1.2;
-            chest.castShadow = true;
-            botGroup.add(chest);
+        const redPlayerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4, metalness: 0.2 });
+        const bluePlayerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4, metalness: 0.2 });
 
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), jointMat);
-            head.position.y = 1.7;
+        function createHumanoidMesh(team) {
+            const group = new THREE.Group();
+            const mat = team === 'red' ? redPlayerMat : bluePlayerMat;
+
+            // Torso
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), mat);
+            torso.position.y = 1.05;
+            torso.castShadow = true;
+            group.add(torso);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), mat);
+            head.position.y = 1.6;
             head.castShadow = true;
-            botGroup.add(head);
+            group.add(head);
 
-            botGroup.position.set(x, 0, z);
+            // Visor
+            const visorMat = new THREE.MeshBasicMaterial({ color: team === 'red' ? 0xff8888 : 0x88ccff });
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.1), visorMat);
+            visor.position.set(0, 1.62, -0.16);
+            group.add(visor);
 
-            const hudEl = document.createElement('div');
-            hudEl.className = 'enemy-hud';
-            hudEl.innerHTML = `
-                <div class="w-1/2 bg-slate-950/90 h-1.5 rounded-sm p-0.5 border border-sky-400/50">
-                    <div class="shield-inner bg-sky-400 h-full w-full rounded-sm"></div>
-                </div>
-                <div class="w-full bg-slate-950/90 h-1.5 rounded-sm p-0.5 border border-emerald-400/50">
-                    <div class="hp-inner bg-emerald-400 h-full w-full rounded-sm"></div>
+            // Arms
+            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), mat);
+            armL.position.set(-0.4, 1.0, 0);
+            armL.castShadow = true;
+            group.add(armL);
+
+            const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), mat);
+            armR.position.set(0.4, 1.0, 0);
+            armR.castShadow = true;
+            group.add(armR);
+
+            // Legs
+            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), mat);
+            legL.position.set(-0.18, 0.35, 0);
+            legL.castShadow = true;
+            group.add(legL);
+
+            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), mat);
+            legR.position.set(0.18, 0.35, 0);
+            legR.castShadow = true;
+            group.add(legR);
+
+            return group;
+        }
+
+        function createRemotePlayerMesh(pData) {
+            const group = createHumanoidMesh(pData.team);
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'player-nameplate';
+            nameEl.innerHTML = `
+                <div class="text-[10px] font-bold ${pData.team === 'red' ? 'text-red-400' : 'text-blue-400'} drop-shadow">${pData.name}</div>
+                <div class="w-12 bg-slate-900/90 h-1 rounded overflow-hidden border border-slate-700">
+                    <div class="hp-bar bg-emerald-400 h-full w-full"></div>
                 </div>
             `;
-            hudsContainer.appendChild(hudEl);
+            nametagContainer.appendChild(nameEl);
 
-            botGroup.userData = {
-                maxShield: 75, shield: 75,
-                maxHealth: 100, health: 100,
-                shootTimer: 0,
-                moveTimer: Math.random() * 2,
-                moveDir: new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2).normalize(),
-                hudElement: hudEl,
-                shieldBar: hudEl.querySelector('.shield-inner'),
-                hpBar: hudEl.querySelector('.hp-inner')
+            group.userData = {
+                id: pData.id,
+                name: pData.name,
+                team: pData.team,
+                health: pData.health || 100,
+                shield: pData.shield || 100,
+                nameEl: nameEl,
+                hpBarEl: nameEl.querySelector('.hp-bar'),
+                isBot: pData.isBot || false,
+                shootTimer: 0
             };
 
-            scene.add(botGroup);
-            enemies.push(botGroup);
+            scene.add(group);
+            remotePlayers.set(pData.id, group);
+            return group;
         }
 
-        function clearEnemies() {
-            enemies.forEach(b => {
-                scene.remove(b);
-                if (b.userData.hudElement) b.userData.hudElement.remove();
-            });
-            enemies.length = 0;
+        function removeRemotePlayer(id) {
+            if (remotePlayers.has(id)) {
+                const group = remotePlayers.get(id);
+                scene.remove(group);
+                if (group.userData.nameEl) group.userData.nameEl.remove();
+                remotePlayers.delete(id);
+            }
         }
 
-        // --- TRACERS & SHOOTING ---
-        function createBulletTracer(startPos, targetPos, isEnemy = false) {
-            const material = new THREE.LineBasicMaterial({
-                color: isEnemy ? 0xef4444 : 0xfef08a,
-                transparent: true, opacity: 0.9, linewidth: 2
-            });
-            const geometry = new THREE.BufferGeometry().setFromPoints([startPos, targetPos]);
-            const line = new THREE.Line(geometry, material);
+        // --- SHOOTING & BULLET TRACERS ---
+        function createBulletTracer(start, target) {
+            const mat = new THREE.LineBasicMaterial({ color: currentWeapon.color, opacity: 0.9, transparent: true, linewidth: 2 });
+            const geo = new THREE.BufferGeometry().setFromPoints([start, target]);
+            const line = new THREE.Line(geo, mat);
             scene.add(line);
 
-            let fadeFrames = 4;
-            function fadeTracer() {
-                fadeFrames--;
-                material.opacity -= 0.22;
-                if (fadeFrames <= 0) {
+            let opacity = 0.9;
+            const fade = setInterval(() => {
+                opacity -= 0.2;
+                mat.opacity = opacity;
+                if (opacity <= 0) {
                     scene.remove(line);
-                    geometry.dispose();
-                    material.dispose();
-                } else {
-                    requestAnimationFrame(fadeTracer);
+                    geo.dispose();
+                    mat.dispose();
+                    clearInterval(fade);
                 }
-            }
-            fadeTracer();
+            }, 30);
         }
 
         function fireWeapon() {
@@ -700,76 +622,69 @@
             player.ammo--;
             updateHUD();
 
-            muzzleLight.intensity = 4.0;
+            muzzleLight.intensity = 3.5;
             setTimeout(() => { muzzleLight.intensity = 0; }, 30);
 
-            weaponGroup.position.z += 0.025;
-            pitch += 0.003;
+            weaponGroup.position.z += 0.02;
+            pitch += 0.002;
 
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const startPos = camera.position.clone().add(new THREE.Vector3(0.18, -0.15, -0.8).applyQuaternion(camera.quaternion));
 
-            const tracerStartPos = camera.position.clone();
-            const scopeOffset = player.isADS 
-                ? new THREE.Vector3(0, -0.08, -0.4).applyQuaternion(camera.quaternion)
-                : new THREE.Vector3(0.16, -0.16, -0.7).applyQuaternion(camera.quaternion);
-            tracerStartPos.add(scopeOffset);
+            const targetMeshes = [];
+            remotePlayers.forEach((pGroup) => {
+                if (pGroup.userData.team !== player.team) {
+                    pGroup.children.forEach(c => targetMeshes.push(c));
+                }
+            });
 
-            const enemyMeshes = [];
-            enemies.forEach(b => b.children.forEach(child => enemyMeshes.push(child)));
+            for (let b = 0; b < currentWeapon.bullets; b++) {
+                const raycaster = new THREE.Raycaster();
+                const spreadX = (Math.random() - 0.5) * currentWeapon.spread;
+                const spreadY = (Math.random() - 0.5) * currentWeapon.spread;
+                raycaster.setFromCamera(new THREE.Vector2(spreadX, spreadY), camera);
 
-            const intersects = raycaster.intersectObjects(enemyMeshes);
+                const intersects = raycaster.intersectObjects(targetMeshes);
+                let hitPoint;
 
-            let impactPoint;
-            if (intersects.length > 0) {
-                impactPoint = intersects[0].point.clone();
-                const hitPart = intersects[0].object;
-                const botGroup = hitPart.parent;
+                if (intersects.length > 0) {
+                    hitPoint = intersects[0].point.clone();
+                    const hitObj = intersects[0].object;
+                    const targetGroup = hitObj.parent;
+                    const isHeadshot = hitPoint.y > targetGroup.position.y + 1.45;
+                    const damage = isHeadshot ? currentWeapon.headDamage : currentWeapon.damage;
 
-                const isHeadshot = intersects[0].point.y > botGroup.position.y + 1.55;
-                const damage = isHeadshot ? 22 : 14;
+                    spawnDamageNumber(hitPoint, damage, isHeadshot);
 
-                let remainingDamage = damage;
-                if (botGroup.userData.shield > 0) {
-                    const shieldAbsorb = Math.ceil(remainingDamage * 0.75);
-                    if (botGroup.userData.shield >= shieldAbsorb) {
-                        botGroup.userData.shield -= shieldAbsorb;
-                        remainingDamage = 0;
-                    } else {
-                        remainingDamage -= Math.ceil(botGroup.userData.shield / 0.75);
-                        botGroup.userData.shield = 0;
+                    targetGroup.userData.health -= damage;
+                    const hpPct = Math.max(0, (targetGroup.userData.health / 100) * 100);
+                    targetGroup.userData.hpBarEl.style.width = `${hpPct}%`;
+
+                    if (roomId && db && currentUser && !targetGroup.userData.isBot) {
+                        const opponentRef = doc(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`, targetGroup.userData.id);
+                        updateDoc(opponentRef, { health: targetGroup.userData.health });
                     }
+
+                    if (targetGroup.userData.health <= 0) {
+                        addKillLog(player.name, targetGroup.userData.name);
+                        if (player.team === 'blue') killsBlue++; else killsRed++;
+                        updateHUD();
+
+                        if (targetGroup.userData.isBot) {
+                            respawnBot(targetGroup);
+                        }
+                    }
+                } else {
+                    hitPoint = camera.position.clone().addScaledVector(raycaster.ray.direction, 70);
                 }
 
-                if (remainingDamage > 0) {
-                    botGroup.userData.health -= remainingDamage;
-                }
-
-                const shieldPct = Math.max(0, (botGroup.userData.shield / botGroup.userData.maxShield) * 100);
-                const hpPct = Math.max(0, (botGroup.userData.health / botGroup.userData.maxHealth) * 100);
-                botGroup.userData.shieldBar.style.width = `${shieldPct}%`;
-                botGroup.userData.hpBar.style.width = `${hpPct}%`;
-
-                spawnDamageNumber(intersects[0].point, damage, isHeadshot, botGroup.userData.shield > 0);
-
-                if (botGroup.userData.health <= 0) {
-                    player.score += 150;
-                    scene.remove(botGroup);
-                    botGroup.userData.hudElement.remove();
-                    const idx = enemies.indexOf(botGroup);
-                    if (idx > -1) enemies.splice(idx, 1);
-
-                    checkRoundStatus();
-                }
-            } else {
-                impactPoint = camera.position.clone().addScaledVector(raycaster.ray.direction, 80);
+                createBulletTracer(startPos, hitPoint);
             }
 
-            createBulletTracer(tracerStartPos, impactPoint, false);
+            checkVictoryCondition();
         }
 
-        function spawnDamageNumber(worldPos, damage, isHeadshot, hitShield) {
-            const screenPos = worldPos.clone().project(camera);
+        function spawnDamageNumber(pos, dmg, isHead) {
+            const screenPos = pos.clone().project(camera);
             const x = (screenPos.x * .5 + .5) * window.innerWidth;
             const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
 
@@ -777,26 +692,18 @@
             el.className = 'damage-number';
             el.style.left = `${x}px`;
             el.style.top = `${y}px`;
-            el.innerText = damage;
-            
-            if (isHeadshot) el.style.color = '#ef4444';
-            else if (hitShield) el.style.color = '#38bdf8';
-            else el.style.color = '#facc15';
+            el.style.color = isHead ? '#ef4444' : '#38bdf8';
+            el.innerText = dmg;
 
             document.body.appendChild(el);
-            setTimeout(() => el.remove(), 700);
+            setTimeout(() => el.remove(), 600);
         }
 
-        function damagePlayer(amount) {
+        function damageLocalPlayer(amount, attackerName = "Bot") {
             if (player.shield > 0) {
-                const shieldAbsorb = Math.ceil(amount * 0.75);
-                if (player.shield >= shieldAbsorb) {
-                    player.shield -= shieldAbsorb;
-                    amount = 0;
-                } else {
-                    amount -= Math.ceil(player.shield / 0.75);
-                    player.shield = 0;
-                }
+                const absorb = Math.min(player.shield, amount);
+                player.shield -= absorb;
+                amount -= absorb;
             }
             if (amount > 0) {
                 player.health -= amount;
@@ -805,248 +712,270 @@
             const flash = document.getElementById('hit-flash');
             if (flash) {
                 flash.style.opacity = '1';
-                setTimeout(() => flash.style.opacity = '0', 150);
+                setTimeout(() => flash.style.opacity = '0', 120);
             }
 
             updateHUD();
 
-            // プレイヤーのHPが0以下になった場合、即座にスコアを表示してモード選択画面へ遷移
             if (player.health <= 0) {
-                endGame(false, "ゲームオーバー (撃破されました)");
-            }
-        }
-
-        function updateHUD() {
-            const hpBar = document.getElementById('health-bar');
-            const shieldBar = document.getElementById('shield-bar');
-            const ammoCount = document.getElementById('ammo-count');
-            const scoreText = document.getElementById('score-text');
-
-            if (hpBar) hpBar.style.width = `${Math.max(0, player.health)}%`;
-            if (shieldBar) shieldBar.style.width = `${Math.max(0, player.shield)}%`;
-            if (ammoCount) ammoCount.innerText = player.ammo;
-
-            if (currentMode === 'combat') {
-                if (scoreText) scoreText.innerText = `ENEMIES LEFT: ${enemies.length}`;
-            }
-        }
-
-        function startCombatMode() {
-            currentMode = 'combat';
-            currentRound = 1;
-            player.score = 0;
-            resetPlayerStatus();
-
-            hideStartOverlay();
-            clearStageObjects();
-
-            for (let i = -8; i <= 8; i += 4) {
-                createWallObstacle(i * 5, -15, 4, 3.5, 1.5);
-                createWallObstacle(i * 5, 15, 4, 3.5, 1.5);
-            }
-            for (let i = 0; i < 8; i++) {
-                createSmallRock((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 2);
-            }
-
-            setupRound(1);
-            showHUD(true);
-            document.body.requestPointerLock();
-        }
-
-        function setupRound(round) {
-            clearEnemies();
-            currentRound = round;
-            
-            const enemyCount = Math.floor(Math.random() * 5) + 1;
-            totalEnemiesInRound = enemyCount;
-
-            document.getElementById('badge-label').innerText = `ROUND ${currentRound} / 5`;
-            
-            for (let i = 0; i < enemyCount; i++) {
-                createEnemyBot((Math.random() - 0.5) * 60, -20 - (Math.random() * 40));
-            }
-
-            updateHUD();
-            showActionHint(`ROUND ${currentRound} START!`);
-        }
-
-        function checkRoundStatus() {
-            if (currentMode === 'combat' && enemies.length === 0) {
-                if (currentRound < 5) {
-                    showActionHint(`ROUND ${currentRound} CLEARED!`);
-                    setTimeout(() => setupRound(currentRound + 1), 1500);
-                } else {
-                    endGame(true, "VICTORY! 全ラウンドクリア");
-                }
-            } else {
+                addKillLog(attackerName, player.name);
+                if (player.team === 'blue') killsRed++; else killsBlue++;
                 updateHUD();
+                respawnLocalPlayer();
+                checkVictoryCondition();
             }
         }
 
-        function startAthleticMode() {
-            currentMode = 'athletic';
-            resetPlayerStatus();
-
-            hideStartOverlay();
-            clearStageObjects();
-            clearEnemies();
-
-            document.getElementById('mode-title-text').innerText = "APEX ATHLETIC PARKOUR";
-            document.getElementById('badge-label').innerText = "PARKOUR TRAINING";
-            document.getElementById('score-text').innerText = "REACH THE GOAL";
-
-            let currentZ = 20;
-            let currentY = 0;
-
-            for (let i = 0; i < 12; i++) {
-                currentZ -= 12;
-                currentY += 2.5;
-                const x = (Math.sin(i) * 10);
-                createPlatform(x, currentY, currentZ, 5, 1, 5);
-            }
-
-            createPlatform(0, currentY + 4, currentZ - 18, 8, 1, 8, true);
-
-            showHUD(true);
-            document.body.requestPointerLock();
-        }
-
-        function hideStartOverlay() {
-            const overlay = document.getElementById('start-overlay');
-            if (overlay) overlay.classList.add('hidden', 'opacity-0', 'pointer-events-none');
-        }
-
-        function showStartOverlay() {
-            const overlay = document.getElementById('start-overlay');
-            if (overlay) overlay.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
-        }
-
-        function resetPlayerStatus() {
+        function respawnLocalPlayer() {
             player.health = 100;
             player.shield = 100;
             player.ammo = player.maxAmmo;
-            player.position.set(0, 1.7, 30);
-            player.velocity.set(0, 0, 0);
+            const spawnZ = player.team === 'blue' ? 45 : -45;
+            player.position.set((Math.random() - 0.5) * 20, 1.7, spawnZ);
             updateHUD();
         }
 
-        function showHUD(show) {
-            const hud = document.getElementById('hud');
-            if (hud) hud.classList.toggle('hidden', !show);
+        function respawnBot(botGroup) {
+            botGroup.userData.health = 100;
+            botGroup.userData.hpBarEl.style.width = '100%';
+            const spawnZ = botGroup.userData.team === 'blue' ? 45 : -45;
+            botGroup.position.set((Math.random() - 0.5) * 30, 0, spawnZ);
         }
 
-        function endGame(isWin, statusText) {
+        function addKillLog(killer, victim) {
+            const logEl = document.getElementById('kill-log');
+            if (!logEl) return;
+
+            const item = document.createElement('div');
+            item.className = 'hud-panel px-2 py-1 rounded text-right font-bold';
+            item.innerHTML = `<span class="text-blue-400">${killer}</span> 💥 <span class="text-red-400">${victim}</span>`;
+            logEl.appendChild(item);
+
+            setTimeout(() => item.remove(), 4000);
+        }
+
+        function updateHUD() {
+            document.getElementById('health-bar').style.width = `${Math.max(0, player.health)}%`;
+            document.getElementById('shield-bar').style.width = `${Math.max(0, player.shield)}%`;
+            document.getElementById('health-val').innerText = `${Math.max(0, player.health)} / 100`;
+            document.getElementById('shield-val').innerText = `${Math.max(0, player.shield)} / 100`;
+            document.getElementById('ammo-count').innerText = player.ammo;
+            document.getElementById('ammo-max').innerText = `/ ${player.maxAmmo}`;
+            document.getElementById('weapon-type-display').innerText = currentWeapon.name;
+            document.getElementById('score-blue').innerText = killsBlue;
+            document.getElementById('score-red').innerText = killsRed;
+        }
+
+        function checkVictoryCondition() {
+            if (killsBlue >= 10 || killsRed >= 10) {
+                const isBlueWin = killsBlue >= 10;
+                endGame(isBlueWin ? "BLUE TEAM WINS!" : "RED TEAM WINS!", `SCORE: BLUE ${killsBlue} - ${killsRed} RED`);
+            }
+        }
+
+        function endGame(statusText, statsText) {
             document.exitPointerLock();
-            showHUD(false);
-            showStartOverlay();
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('start-overlay').classList.remove('hidden');
 
             const banner = document.getElementById('results-banner');
-            const statusEl = document.getElementById('result-status');
-            const statsEl = document.getElementById('result-stats');
+            banner.classList.remove('hidden');
+            document.getElementById('result-status').innerText = statusText;
+            document.getElementById('result-stats').innerText = statsText;
 
-            if (banner) banner.classList.remove('hidden');
-
-            if (statusEl) {
-                statusEl.innerText = statusText;
-                statusEl.className = isWin ? "text-lg font-black text-amber-400 italic" : "text-lg font-black text-red-500 italic";
+            if (roomUnsubscribe) {
+                roomUnsubscribe();
+                roomUnsubscribe = null;
             }
-            if (statsEl) statsEl.innerText = `FINAL SCORE: ${player.score}`;
         }
 
-        document.getElementById('btn-mode-combat').addEventListener('click', startCombatMode);
-        document.getElementById('btn-mode-athletic').addEventListener('click', startAthleticMode);
+        // --- GAME START LOGIC ---
+        function startPracticeGame() {
+            roomId = null;
+            player.name = document.getElementById('input-player-name').value || 'Player1';
+            player.team = 'blue';
 
-        document.getElementById('btn-quick-preview').addEventListener('click', () => {
-            const overlay = document.getElementById('start-overlay');
-            if (overlay.classList.contains('opacity-0')) {
-                overlay.classList.remove('opacity-0', 'pointer-events-none');
-            } else {
-                overlay.classList.add('opacity-0', 'pointer-events-none');
-                showHUD(true);
+            const weaponKey = document.getElementById('select-weapon').value || 'ar';
+            currentWeapon = WEAPONS[weaponKey];
+            player.ammo = currentWeapon.ammo;
+            player.maxAmmo = currentWeapon.ammo;
+
+            botLevel = parseInt(document.getElementById('input-bot-level').value) || 5;
+
+            document.getElementById('player-team-badge').innerText = "BLUE TEAM";
+            document.getElementById('player-team-badge').className = "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30";
+            document.getElementById('room-code-display').innerText = `PRACTICE MATCH (BOT LV.${botLevel})`;
+
+            remotePlayers.forEach((_, id) => removeRemotePlayer(id));
+            killsBlue = 0; killsRed = 0;
+
+            for (let i = 1; i <= 3; i++) {
+                createRemotePlayerMesh({
+                    id: `bot_red_${i}`,
+                    name: `Bot_Red_${i}`,
+                    team: 'red',
+                    isBot: true,
+                    health: 100
+                });
             }
+
+            respawnLocalPlayer();
+            document.getElementById('start-overlay').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.body.requestPointerLock();
+        }
+
+        const botLevelNames = {
+            1: "Very Easy", 2: "Easy", 3: "Beginner", 4: "Fair",
+            5: "Normal", 6: "Hard", 7: "Expert", 8: "Nightmare", 9: "Insane"
+        };
+        document.getElementById('input-bot-level')?.addEventListener('input', (e) => {
+            const val = e.target.value;
+            document.getElementById('bot-level-display').innerText = `LV ${val}: ${botLevelNames[val]}`;
         });
 
-        window.addEventListener('click', () => {
-            const overlay = document.getElementById('start-overlay');
-            if (overlay.classList.contains('opacity-0') && document.pointerLockElement !== document.body) {
-                overlay.classList.remove('opacity-0', 'pointer-events-none');
+        async function joinOnlineRoom() {
+            if (!db || !currentUser) {
+                alert("オンライン接続を初期化中です。しばらく待ってから再試行してください。");
+                return;
             }
-        });
 
+            const codeInput = document.getElementById('input-room-code').value.trim().toUpperCase();
+            if (!codeInput) {
+                alert("ルームコードを入力してください。");
+                return;
+            }
+
+            roomId = codeInput;
+            player.name = document.getElementById('input-player-name').value || 'Player1';
+            player.team = Math.random() > 0.5 ? 'blue' : 'red';
+
+            const teamBadge = document.getElementById('player-team-badge');
+            teamBadge.innerText = `${player.team.toUpperCase()} TEAM`;
+            teamBadge.className = player.team === 'blue' 
+                ? "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                : "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30";
+
+            document.getElementById('room-code-display').innerText = `ROOM: ${roomId}`;
+
+            const myPlayerRef = doc(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`, currentUser.uid);
+            await setDoc(myPlayerRef, {
+                id: currentUser.uid,
+                name: player.name,
+                team: player.team,
+                x: player.position.x,
+                y: player.position.y,
+                z: player.position.z,
+                yaw: yaw,
+                health: player.health,
+                updatedAt: Date.now()
+            });
+
+            const roomCol = collection(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`);
+            roomUnsubscribe = onSnapshot(roomCol, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    if (data.id === currentUser.uid) return;
+
+                    if (change.type === "added" || change.type === "modified") {
+                        if (!remotePlayers.has(data.id)) {
+                            createRemotePlayerMesh(data);
+                        }
+                        const pGroup = remotePlayers.get(data.id);
+                        if (pGroup) {
+                            pGroup.position.set(data.x, data.y - 1.7, data.z);
+                            pGroup.rotation.y = data.yaw || 0;
+                            pGroup.userData.health = data.health;
+                            if (pGroup.userData.hpBarEl) {
+                                pGroup.userData.hpBarEl.style.width = `${Math.max(0, data.health)}%`;
+                            }
+                        }
+                    }
+                    if (change.type === "removed") {
+                        removeRemotePlayer(data.id);
+                    }
+                });
+            }, (err) => console.error(err));
+
+            respawnLocalPlayer();
+            document.getElementById('start-overlay').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.body.requestPointerLock();
+        }
+
+        document.getElementById('btn-practice').addEventListener('click', startPracticeGame);
+        document.getElementById('btn-join-room').addEventListener('click', joinOnlineRoom);
+
+        // --- MAIN GAME LOOP ---
         const clock = new THREE.Clock();
+        let lastSyncTime = 0;
 
-        // --- MAIN LOOP ---
         function animate() {
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1);
 
             const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-            euler.x = pitch;
-            euler.y = yaw;
+            euler.x = pitch; euler.y = yaw;
             camera.quaternion.setFromEuler(euler);
 
-            const targetFOV = player.isADS ? 42 : (player.isSliding ? 82 : 75);
-            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.25);
+            const targetFOV = player.isADS ? 45 : (player.isSliding ? 82 : 75);
+            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.2);
             camera.updateProjectionMatrix();
 
-            const targetGunPos = player.isADS 
-                ? new THREE.Vector3(-0.16, 0.06, -0.48)
-                : new THREE.Vector3(0.16, -0.20, -0.45);
-            weaponGroup.position.lerp(targetGunPos, 0.35);
-
-            const crosshairSvg = document.getElementById('crosshair-svg');
-            if (crosshairSvg) crosshairSvg.style.opacity = player.isADS ? '0' : '1';
-
+            // Weapon Fire Rate Handling
             shootCooldown -= delta;
             if ((isMouseDown || isEnterDown) && shootCooldown <= 0) {
                 fireWeapon();
-                shootCooldown = 0.065;
+                shootCooldown = currentWeapon.fireRate;
             }
 
-            if (player.isMantleReady) {
-                player.mantleTimer--;
-                if (player.mantleTimer <= 0) {
-                    player.isMantleReady = false;
-                    hideMantlePrompt();
-                }
-            }
+            // Weapon Kickback Recovery
+            weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0, 0.1);
 
+            // Movement & Sliding Logic
             const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const nextPos = camera.position.clone();
 
-            if (keys.w && player.isGrounded && !player.isCrouching && !player.isSliding) {
-                player.runDistance += delta * 14;
-                if (player.runDistance >= 15) player.isSprinting = true;
-            } else if (!keys.w || player.isCrouching) {
-                player.runDistance = 0;
-                player.isSprinting = false;
-            }
-
-            let currentSpeed = player.baseSpeed;
-            if (player.isSliding) currentSpeed = player.slideSpeed;
-            else if (player.isSprinting) currentSpeed = player.sprintSpeed;
-            else if (player.isCrouching) currentSpeed = player.baseSpeed * 0.5;
+            let speed = player.baseSpeed;
 
             if (player.isSliding) {
-                player.slideTimer--;
-                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.25);
-                nextPos.addScaledVector(forward, currentSpeed);
-                if (player.slideTimer <= 0) player.isSliding = false;
-            } else if (player.isCrouching) {
-                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.25);
+                player.slideTimer += delta;
+                const progress = Math.min(1.0, player.slideTimer / player.slideDuration);
+                player.currentSlideSpeed = player.initialSlideSpeed * (1.0 - progress);
+
+                speed = player.currentSlideSpeed;
+                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.2);
+
+                if (speed > 0.001) {
+                    nextPos.addScaledVector(forward, speed);
+                }
+
+                if (player.slideTimer >= player.slideDuration) {
+                    player.isSliding = false;
+                    player.currentSlideSpeed = 0;
+                }
             } else {
-                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.height, 0.25);
+                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.height, 0.2);
+                if (keys.w) nextPos.addScaledVector(forward, speed);
+                if (keys.s) nextPos.addScaledVector(forward, -speed);
+                if (keys.d) nextPos.addScaledVector(right, speed);
+                if (keys.a) nextPos.addScaledVector(right, -speed);
             }
 
-            if (!player.isSliding) {
-                if (keys.w) nextPos.addScaledVector(forward, currentSpeed);
-                if (keys.s) nextPos.addScaledVector(forward, -currentSpeed);
-                if (keys.d) nextPos.addScaledVector(right, currentSpeed);
-                if (keys.a) nextPos.addScaledVector(right, -currentSpeed);
-            }
+            colliders.forEach(c => {
+                if (nextPos.x > c.minX && nextPos.x < c.maxX && nextPos.z > c.minZ && nextPos.z < c.maxZ) {
+                    if (camera.position.y > c.height + 0.5) {
+                        // On obstacle top
+                    } else {
+                        nextPos.x = camera.position.x;
+                        nextPos.z = camera.position.z;
+                    }
+                }
+            });
 
-            player.velocity.y -= 25.0 * delta;
+            // Gravity
+            player.velocity.y -= 24.0 * delta;
             nextPos.y += player.velocity.y * delta;
 
             if (nextPos.y <= player.currentHeight) {
@@ -1056,64 +985,66 @@
             }
 
             camera.position.copy(nextPos);
+            player.position.copy(nextPos);
 
-            if (currentMode === 'combat') {
-                enemies.forEach(bot => {
-                    bot.lookAt(camera.position.x, bot.position.y, camera.position.z);
-                    
-                    bot.userData.moveTimer -= delta;
-                    if (bot.userData.moveTimer <= 0) {
-                        bot.userData.moveTimer = 1.5 + Math.random() * 2.0;
-                        const randAngle = (Math.random() - 0.5) * Math.PI;
-                        bot.userData.moveDir = new THREE.Vector3(Math.sin(randAngle), 0, Math.cos(randAngle)).normalize();
+            // Bot AI Behavior
+            remotePlayers.forEach((pGroup) => {
+                if (!pGroup.userData.isBot) return;
+
+                pGroup.lookAt(camera.position.x, pGroup.position.y, camera.position.z);
+
+                const moveSpeed = 1.8 + (botLevel * 0.4);
+                const attackInterval = Math.max(0.35, 2.2 - (botLevel * 0.2));
+                const hitAccuracy = 0.15 + (botLevel * 0.09);
+                const botDamage = Math.round(5 + (botLevel * 1.8));
+
+                const dir = new THREE.Vector3().subVectors(camera.position, pGroup.position).normalize();
+                const dist = pGroup.position.distanceTo(camera.position);
+
+                if (dist > (12 - botLevel * 0.6)) {
+                    pGroup.position.x += dir.x * moveSpeed * delta;
+                    pGroup.position.z += dir.z * moveSpeed * delta;
+                }
+
+                pGroup.userData.shootTimer = (pGroup.userData.shootTimer || 0) + delta;
+                if (pGroup.userData.shootTimer > attackInterval) {
+                    pGroup.userData.shootTimer = 0;
+                    if (dist < 45 && Math.random() < hitAccuracy) {
+                        createBulletTracer(pGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0)), camera.position);
+                        damageLocalPlayer(botDamage, pGroup.userData.name);
                     }
+                }
+            });
 
-                    const moveSpeed = 3.2 * delta;
-                    const nextEnemyX = bot.position.x + bot.userData.moveDir.x * moveSpeed;
-                    const nextEnemyZ = bot.position.z + bot.userData.moveDir.z * moveSpeed;
-                    if (Math.abs(nextEnemyX) < 100 && Math.abs(nextEnemyZ) < 100) {
-                        bot.position.x = nextEnemyX;
-                        bot.position.z = nextEnemyZ;
-                    }
+            // Update Nameplates
+            remotePlayers.forEach((pGroup) => {
+                const headPos = pGroup.position.clone();
+                headPos.y += 1.8;
+                const screenPos = headPos.project(camera);
 
-                    bot.userData.shootTimer = (bot.userData.shootTimer || 0) + delta;
-                    if (bot.userData.shootTimer > 1.3) {
-                        bot.userData.shootTimer = 0;
+                if (screenPos.z < 1) {
+                    const x = (screenPos.x * .5 + .5) * window.innerWidth;
+                    const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
+                    pGroup.userData.nameEl.style.left = `${x}px`;
+                    pGroup.userData.nameEl.style.top = `${y}px`;
+                    pGroup.userData.nameEl.style.display = 'flex';
+                } else {
+                    pGroup.userData.nameEl.style.display = 'none';
+                }
+            });
 
-                        const distToPlayer = bot.position.distanceTo(camera.position);
-                        const hitChance = Math.max(0.12, 0.45 - (distToPlayer * 0.005));
-                        const isHit = Math.random() < hitChance;
-
-                        const botMuzzle = bot.position.clone();
-                        botMuzzle.y += 1.2;
-
-                        let targetPoint = camera.position.clone();
-                        if (!isHit) {
-                            targetPoint.x += (Math.random() - 0.5) * 6;
-                            targetPoint.y += (Math.random() - 0.5) * 4;
-                            targetPoint.z += (Math.random() - 0.5) * 6;
-                        }
-
-                        createBulletTracer(botMuzzle, targetPoint, true);
-
-                        if (isHit) {
-                            damagePlayer(3);
-                        }
-                    }
-
-                    const headPos = bot.position.clone();
-                    headPos.y += 2.1;
-                    const screenPos = headPos.project(camera);
-                    if (screenPos.z < 1) {
-                        const x = (screenPos.x * .5 + .5) * window.innerWidth;
-                        const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
-                        bot.userData.hudElement.style.left = `${x}px`;
-                        bot.userData.hudElement.style.top = `${y}px`;
-                        bot.userData.hudElement.style.display = 'flex';
-                    } else {
-                        bot.userData.hudElement.style.display = 'none';
-                    }
-                });
+            // Sync Local Position to Firestore
+            if (roomId && db && currentUser && Date.now() - lastSyncTime > 100) {
+                lastSyncTime = Date.now();
+                const myPlayerRef = doc(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`, currentUser.uid);
+                updateDoc(myPlayerRef, {
+                    x: player.position.x,
+                    y: player.position.y,
+                    z: player.position.z,
+                    yaw: yaw,
+                    health: player.health,
+                    updatedAt: Date.now()
+                }).catch(() => {});
             }
 
             renderer.render(scene, camera);
