@@ -137,7 +137,7 @@
             <div class="w-72 space-y-1">
                 <div class="flex items-center gap-2">
                     <span class="text-[9px] font-bold text-sky-400 w-10">SHIELD</span>
-                    <div class="flex-1 bg-slate-950/80 h-2 rounded-sm p-0.5 border border-sky-500/30">
+                    <div class="w-1/2 bg-slate-950/80 h-2 rounded-sm p-0.5 border border-sky-500/30">
                         <div id="shield-bar" class="bg-gradient-to-r from-sky-400 to-cyan-300 h-full w-full rounded-sm transition-all duration-150"></div>
                     </div>
                 </div>
@@ -165,12 +165,12 @@
     <div id="enemy-huds-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
 
     <!-- Mode Selection & Start Screen Overlay -->
-    <div id="start-overlay" class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-center z-30 transition-all duration-300">
-        <div class="bg-slate-900/80 border border-amber-500/40 p-6 md:p-8 rounded-2xl max-w-lg w-[90%] text-center shadow-[0_0_50px_rgba(245,158,11,0.25)] relative overflow-hidden backdrop-blur-md">
+    <div id="start-overlay" class="absolute inset-0 bg-slate-950/20 backdrop-blur-[2px] flex flex-col items-center justify-center z-30 transition-all duration-300">
+        <div class="bg-slate-900/85 border border-amber-500/50 p-6 md:p-8 rounded-2xl max-w-lg w-[90%] text-center shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden backdrop-blur-md">
             
-            <!-- Quick Lock & Play Button for Instant Screen View -->
-            <button id="btn-quick-preview" class="absolute top-3 right-3 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg text-xs font-bold transition flex items-center gap-1 border border-slate-600/50">
-                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Quick Lock & Play Button -->
+            <button id="btn-quick-preview" class="absolute top-3 right-3 text-slate-200 hover:text-white bg-slate-800/90 hover:bg-amber-500 hover:text-slate-950 p-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-600/80 shadow-md">
+                <svg class="w-4 h-4 text-amber-400 group-hover:text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                 </svg>
@@ -338,7 +338,7 @@
         const weaponGroup = new THREE.Group();
 
         // Hands (Detailed arms)
-        const armMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8 }); // Arm skin/glove
+        const armMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8 });
         const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45), armMat);
         leftArm.rotation.set(Math.PI / 3, -0.2, -0.4);
         leftArm.position.set(-0.15, -0.28, -0.38);
@@ -357,7 +357,7 @@
         r99Body.position.set(0.16, -0.20, -0.45);
         weaponGroup.add(r99Body);
 
-        // Magazine (Animated during reload)
+        // Magazine
         const r99Mag = new THREE.Mesh(
             new THREE.BoxGeometry(0.05, 0.22, 0.07),
             new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 })
@@ -366,7 +366,7 @@
         r99Mag.position.set(0.16, -0.30, -0.42);
         weaponGroup.add(r99Mag);
 
-        // Barrel & Shroud
+        // Barrel
         const r99Barrel = new THREE.Mesh(
             new THREE.CylinderGeometry(0.02, 0.02, 0.35),
             new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.9 })
@@ -375,7 +375,7 @@
         r99Barrel.position.set(0.16, -0.16, -0.72);
         weaponGroup.add(r99Barrel);
 
-        // Holo Sight Base & Lens Ring
+        // Sight Ring
         const scopeGroup = new THREE.Group();
         const scopeRing = new THREE.Mesh(
             new THREE.TorusGeometry(0.042, 0.007, 8, 24),
@@ -384,7 +384,7 @@
         scopeRing.position.set(0.16, -0.06, -0.48);
         scopeGroup.add(scopeRing);
 
-        // Holo Reticle Red Dot
+        // Reticle
         const holoMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.95 });
         const holoDot = new THREE.Mesh(new THREE.CircleGeometry(0.003, 12), holoMat);
         holoDot.position.set(0.16, -0.06, -0.481);
@@ -429,10 +429,9 @@
 
         camera.position.copy(player.position);
 
-        let currentMode = null; // 'combat' or 'athletic'
+        let currentMode = null;
         let currentRound = 1;
         let totalEnemiesInRound = 0;
-        let athleticGoalMesh = null;
 
         const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
         let yaw = 0;
@@ -495,13 +494,11 @@
             }
         }
 
-        // --- RELOAD WITH MOTION (1.3 SECONDS) ---
         function reloadWeapon() {
             if (player.isReloading || player.ammo === player.maxAmmo) return;
             player.isReloading = true;
             showActionHint("RELOADING...");
 
-            // 1.3s Magazine drop & tilt animation
             const startRot = weaponGroup.rotation.x;
             const startMagY = r99Mag.position.y;
 
@@ -587,7 +584,7 @@
             }
         }
 
-        // Pointer Lock & Controls
+        // Pointer Lock
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement !== document.body) return;
             const sens = player.isADS ? 0.0012 : 0.0024;
@@ -634,7 +631,7 @@
             const hudEl = document.createElement('div');
             hudEl.className = 'enemy-hud';
             hudEl.innerHTML = `
-                <div class="w-full bg-slate-950/90 h-1.5 rounded-sm p-0.5 border border-sky-400/50">
+                <div class="w-1/2 bg-slate-950/90 h-1.5 rounded-sm p-0.5 border border-sky-400/50">
                     <div class="shield-inner bg-sky-400 h-full w-full rounded-sm"></div>
                 </div>
                 <div class="w-full bg-slate-950/90 h-1.5 rounded-sm p-0.5 border border-emerald-400/50">
@@ -644,9 +641,11 @@
             hudsContainer.appendChild(hudEl);
 
             botGroup.userData = {
-                maxShield: 50, shield: 50,
+                maxShield: 75, shield: 75,
                 maxHealth: 100, health: 100,
                 shootTimer: 0,
+                moveTimer: Math.random() * 2,
+                moveDir: new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2).normalize(),
                 hudElement: hudEl,
                 shieldBar: hudEl.querySelector('.shield-inner'),
                 hpBar: hudEl.querySelector('.hp-inner')
@@ -708,7 +707,6 @@
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            // Compute tracer start clean right below scope during ADS
             const tracerStartPos = camera.position.clone();
             const scopeOffset = player.isADS 
                 ? new THREE.Vector3(0, -0.08, -0.4).applyQuaternion(camera.quaternion)
@@ -731,11 +729,12 @@
 
                 let remainingDamage = damage;
                 if (botGroup.userData.shield > 0) {
-                    if (botGroup.userData.shield >= remainingDamage) {
-                        botGroup.userData.shield -= remainingDamage;
+                    const shieldAbsorb = Math.ceil(remainingDamage * 0.75);
+                    if (botGroup.userData.shield >= shieldAbsorb) {
+                        botGroup.userData.shield -= shieldAbsorb;
                         remainingDamage = 0;
                     } else {
-                        remainingDamage -= botGroup.userData.shield;
+                        remainingDamage -= Math.ceil(botGroup.userData.shield / 0.75);
                         botGroup.userData.shield = 0;
                     }
                 }
@@ -767,7 +766,6 @@
             createBulletTracer(tracerStartPos, impactPoint, false);
         }
 
-        // Damage Number Floating Text
         function spawnDamageNumber(worldPos, damage, isHeadshot, hitShield) {
             const screenPos = worldPos.clone().project(camera);
             const x = (screenPos.x * .5 + .5) * window.innerWidth;
@@ -787,14 +785,14 @@
             setTimeout(() => el.remove(), 700);
         }
 
-        // Player Takes Damage From Enemy Shots
         function damagePlayer(amount) {
             if (player.shield > 0) {
-                if (player.shield >= amount) {
-                    player.shield -= amount;
+                const shieldAbsorb = Math.ceil(amount * 0.75);
+                if (player.shield >= shieldAbsorb) {
+                    player.shield -= shieldAbsorb;
                     amount = 0;
                 } else {
-                    amount -= player.shield;
+                    amount -= Math.ceil(player.shield / 0.75);
                     player.shield = 0;
                 }
             }
@@ -810,8 +808,9 @@
 
             updateHUD();
 
+            // プレイヤーのHPが0以下になった場合、即座にスコアを表示してモード選択画面へ遷移
             if (player.health <= 0) {
-                endGame(false, "ELIMINATED IN COMBAT");
+                endGame(false, "ゲームオーバー (撃破されました)");
             }
         }
 
@@ -830,15 +829,15 @@
             }
         }
 
-        // --- GAME MODES MANAGEMENT ---
         function startCombatMode() {
             currentMode = 'combat';
             currentRound = 1;
             player.score = 0;
             resetPlayerStatus();
 
+            hideStartOverlay();
             clearStageObjects();
-            // Create Arena obstacles & cover rocks
+
             for (let i = -8; i <= 8; i += 4) {
                 createWallObstacle(i * 5, -15, 4, 3.5, 1.5);
                 createWallObstacle(i * 5, 15, 4, 3.5, 1.5);
@@ -856,7 +855,6 @@
             clearEnemies();
             currentRound = round;
             
-            // Random enemies count from 1 to 5 per round
             const enemyCount = Math.floor(Math.random() * 5) + 1;
             totalEnemiesInRound = enemyCount;
 
@@ -876,7 +874,7 @@
                     showActionHint(`ROUND ${currentRound} CLEARED!`);
                     setTimeout(() => setupRound(currentRound + 1), 1500);
                 } else {
-                    endGame(true, "VICTORY! ALL 5 ROUNDS CLEARED");
+                    endGame(true, "VICTORY! 全ラウンドクリア");
                 }
             } else {
                 updateHUD();
@@ -887,6 +885,7 @@
             currentMode = 'athletic';
             resetPlayerStatus();
 
+            hideStartOverlay();
             clearStageObjects();
             clearEnemies();
 
@@ -894,7 +893,6 @@
             document.getElementById('badge-label').innerText = "PARKOUR TRAINING";
             document.getElementById('score-text').innerText = "REACH THE GOAL";
 
-            // Create Parkour Athletic Course
             let currentZ = 20;
             let currentY = 0;
 
@@ -905,11 +903,20 @@
                 createPlatform(x, currentY, currentZ, 5, 1, 5);
             }
 
-            // Final Goal Platform
-            athleticGoalMesh = createPlatform(0, currentY + 4, currentZ - 18, 8, 1, 8, true);
+            createPlatform(0, currentY + 4, currentZ - 18, 8, 1, 8, true);
 
             showHUD(true);
             document.body.requestPointerLock();
+        }
+
+        function hideStartOverlay() {
+            const overlay = document.getElementById('start-overlay');
+            if (overlay) overlay.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+        }
+
+        function showStartOverlay() {
+            const overlay = document.getElementById('start-overlay');
+            if (overlay) overlay.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
         }
 
         function resetPlayerStatus() {
@@ -929,24 +936,24 @@
         function endGame(isWin, statusText) {
             document.exitPointerLock();
             showHUD(false);
+            showStartOverlay();
 
-            const overlay = document.getElementById('start-overlay');
             const banner = document.getElementById('results-banner');
             const statusEl = document.getElementById('result-status');
             const statsEl = document.getElementById('result-stats');
 
-            if (overlay) overlay.classList.remove('hidden');
             if (banner) banner.classList.remove('hidden');
 
-            if (statusEl) statusEl.innerText = statusText;
+            if (statusEl) {
+                statusEl.innerText = statusText;
+                statusEl.className = isWin ? "text-lg font-black text-amber-400 italic" : "text-lg font-black text-red-500 italic";
+            }
             if (statsEl) statsEl.innerText = `FINAL SCORE: ${player.score}`;
         }
 
-        // Mode Selection Button Handlers
         document.getElementById('btn-mode-combat').addEventListener('click', startCombatMode);
         document.getElementById('btn-mode-athletic').addEventListener('click', startAthleticMode);
 
-        // Preview Screen Toggle (temporary unlock pointer to see arena)
         document.getElementById('btn-quick-preview').addEventListener('click', () => {
             const overlay = document.getElementById('start-overlay');
             if (overlay.classList.contains('opacity-0')) {
@@ -957,50 +964,12 @@
             }
         });
 
-        // Click screen to restore overlay if in preview mode
-        window.addEventListener('click', (e) => {
+        window.addEventListener('click', () => {
             const overlay = document.getElementById('start-overlay');
             if (overlay.classList.contains('opacity-0') && document.pointerLockElement !== document.body) {
                 overlay.classList.remove('opacity-0', 'pointer-events-none');
             }
         });
-
-        // --- COLLISION DETECTOR (Barrier & Rocks) ---
-        function checkCollisions(newPos) {
-            // White Outer Boundary Wall Collision
-            const halfSize = mapSize / 2 - 1.5;
-            newPos.x = Math.max(-halfSize, Math.min(halfSize, newPos.x));
-            newPos.z = Math.max(-halfSize, Math.min(halfSize, newPos.z));
-
-            // Stage Obstacle Collision
-            for (const col of mapColliders) {
-                const minX = col.x - col.w / 2 - player.radius;
-                const maxX = col.x + col.w / 2 + player.radius;
-                const minZ = col.z - col.d / 2 - player.radius;
-                const maxZ = col.z + col.d / 2 + player.radius;
-
-                if (newPos.x > minX && newPos.x < maxX && newPos.z > minZ && newPos.z < maxZ) {
-                    if (col.isPlatform) {
-                        if (player.velocity.y <= 0 && newPos.y <= col.h + player.height) {
-                            newPos.y = col.h + player.height;
-                            player.velocity.y = 0;
-                            player.isGrounded = true;
-                        }
-                    } else if (newPos.y < col.h) {
-                        const dxMin = Math.abs(newPos.x - minX);
-                        const dxMax = Math.abs(newPos.x - maxX);
-                        const dzMin = Math.abs(newPos.z - minZ);
-                        const dzMax = Math.abs(newPos.z - maxZ);
-                        const minOverlap = Math.min(dxMin, dxMax, dzMin, dzMax);
-
-                        if (minOverlap === dxMin) newPos.x = minX;
-                        else if (minOverlap === dxMax) newPos.x = maxX;
-                        else if (minOverlap === dzMin) newPos.z = minZ;
-                        else if (minOverlap === dzMax) newPos.z = maxZ;
-                    }
-                }
-            }
-        }
 
         const clock = new THREE.Clock();
 
@@ -1014,12 +983,10 @@
             euler.y = yaw;
             camera.quaternion.setFromEuler(euler);
 
-            // ADS FOV & Gun Pos
             const targetFOV = player.isADS ? 42 : (player.isSliding ? 82 : 75);
             camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.25);
             camera.updateProjectionMatrix();
 
-            // Perfect Holo Sight Center Alignment on ADS
             const targetGunPos = player.isADS 
                 ? new THREE.Vector3(-0.16, 0.06, -0.48)
                 : new THREE.Vector3(0.16, -0.20, -0.45);
@@ -1028,14 +995,12 @@
             const crosshairSvg = document.getElementById('crosshair-svg');
             if (crosshairSvg) crosshairSvg.style.opacity = player.isADS ? '0' : '1';
 
-            // Weapon Firing Cooldown
             shootCooldown -= delta;
             if ((isMouseDown || isEnterDown) && shootCooldown <= 0) {
                 fireWeapon();
                 shootCooldown = 0.065;
             }
 
-            // Mantle Boost Window
             if (player.isMantleReady) {
                 player.mantleTimer--;
                 if (player.mantleTimer <= 0) {
@@ -1048,7 +1013,6 @@
             const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const nextPos = camera.position.clone();
 
-            // SPRINT RUN-UP (Disallowed while crouching)
             if (keys.w && player.isGrounded && !player.isCrouching && !player.isSliding) {
                 player.runDistance += delta * 14;
                 if (player.runDistance >= 15) player.isSprinting = true;
@@ -1056,13 +1020,6 @@
                 player.runDistance = 0;
                 player.isSprinting = false;
             }
-
-            // Movement & Sliding
-            const moveDir = new THREE.Vector3();
-            if (keys.w) moveDir.add(forward);
-            if (keys.s) moveDir.sub(forward);
-            if (keys.d) moveDir.add(right);
-            if (keys.a) moveDir.sub(right);
 
             let currentSpeed = player.baseSpeed;
             if (player.isSliding) currentSpeed = player.slideSpeed;
@@ -1074,59 +1031,74 @@
                 player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.25);
                 nextPos.addScaledVector(forward, currentSpeed);
                 if (player.slideTimer <= 0) player.isSliding = false;
+            } else if (player.isCrouching) {
+                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.25);
             } else {
-                const targetH = player.isCrouching ? player.crouchHeight : player.height;
-                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, targetH, 0.25);
-
-                if (moveDir.lengthSq() > 0) {
-                    moveDir.normalize();
-                    nextPos.addScaledVector(moveDir, currentSpeed);
-                }
+                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.height, 0.25);
             }
 
-            // Gravity
-            if (!player.isGrounded) {
-                player.velocity.y -= 26.0 * delta;
-                nextPos.y += player.velocity.y * delta;
+            if (!player.isSliding) {
+                if (keys.w) nextPos.addScaledVector(forward, currentSpeed);
+                if (keys.s) nextPos.addScaledVector(forward, -currentSpeed);
+                if (keys.d) nextPos.addScaledVector(right, currentSpeed);
+                if (keys.a) nextPos.addScaledVector(right, -currentSpeed);
+            }
 
-                if (nextPos.y <= player.currentHeight) {
-                    nextPos.y = player.currentHeight;
-                    player.velocity.y = 0;
-                    player.isGrounded = true;
-                    player.isClimbing = false;
-                }
-            } else {
+            player.velocity.y -= 25.0 * delta;
+            nextPos.y += player.velocity.y * delta;
+
+            if (nextPos.y <= player.currentHeight) {
                 nextPos.y = player.currentHeight;
+                player.velocity.y = 0;
+                player.isGrounded = true;
             }
 
-            checkCollisions(nextPos);
             camera.position.copy(nextPos);
 
-            // Athletic Goal Collision Check
-            if (currentMode === 'athletic' && athleticGoalMesh) {
-                const distToGoal = camera.position.distanceTo(athleticGoalMesh.position);
-                if (distToGoal < 4) {
-                    endGame(true, "PARKOUR ATHLETIC CLEAR!");
-                }
-            }
-
-            // Enemy AI Shooting Logic (Combat Mode)
             if (currentMode === 'combat') {
                 enemies.forEach(bot => {
                     bot.lookAt(camera.position.x, bot.position.y, camera.position.z);
                     
-                    bot.userData.shootTimer = (bot.userData.shootTimer || 0) + delta;
-                    if (bot.userData.shootTimer > 1.2) {
-                        bot.userData.shootTimer = 0;
-
-                        // Bot shoots at player
-                        const botMuzzle = bot.position.clone();
-                        botMuzzle.y += 1.2;
-                        createBulletTracer(botMuzzle, camera.position, true);
-                        damagePlayer(8);
+                    bot.userData.moveTimer -= delta;
+                    if (bot.userData.moveTimer <= 0) {
+                        bot.userData.moveTimer = 1.5 + Math.random() * 2.0;
+                        const randAngle = (Math.random() - 0.5) * Math.PI;
+                        bot.userData.moveDir = new THREE.Vector3(Math.sin(randAngle), 0, Math.cos(randAngle)).normalize();
                     }
 
-                    // Update Enemy HUD Screen Position
+                    const moveSpeed = 3.2 * delta;
+                    const nextEnemyX = bot.position.x + bot.userData.moveDir.x * moveSpeed;
+                    const nextEnemyZ = bot.position.z + bot.userData.moveDir.z * moveSpeed;
+                    if (Math.abs(nextEnemyX) < 100 && Math.abs(nextEnemyZ) < 100) {
+                        bot.position.x = nextEnemyX;
+                        bot.position.z = nextEnemyZ;
+                    }
+
+                    bot.userData.shootTimer = (bot.userData.shootTimer || 0) + delta;
+                    if (bot.userData.shootTimer > 1.3) {
+                        bot.userData.shootTimer = 0;
+
+                        const distToPlayer = bot.position.distanceTo(camera.position);
+                        const hitChance = Math.max(0.12, 0.45 - (distToPlayer * 0.005));
+                        const isHit = Math.random() < hitChance;
+
+                        const botMuzzle = bot.position.clone();
+                        botMuzzle.y += 1.2;
+
+                        let targetPoint = camera.position.clone();
+                        if (!isHit) {
+                            targetPoint.x += (Math.random() - 0.5) * 6;
+                            targetPoint.y += (Math.random() - 0.5) * 4;
+                            targetPoint.z += (Math.random() - 0.5) * 6;
+                        }
+
+                        createBulletTracer(botMuzzle, targetPoint, true);
+
+                        if (isHit) {
+                            damagePlayer(3);
+                        }
+                    }
+
                     const headPos = bot.position.clone();
                     headPos.y += 2.1;
                     const screenPos = headPos.project(camera);
@@ -1151,7 +1123,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Start render loop
         animate();
     </script>
 </body>
