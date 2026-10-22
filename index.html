@@ -18,13 +18,37 @@
         /* Apexスタイルの斜めパネル */
         .apex-panel {
             transform: skewX(-12deg);
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(56, 189, 248, 0.1);
-            backdrop-filter: blur(8px);
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(56, 189, 248, 0.15);
+            backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+        }
+        .apex-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.15), transparent);
+            animation: scanline 4s infinite linear;
+        }
+        @keyframes scanline {
+            0% { left: -100%; }
+            100% { left: 200%; }
         }
         .apex-panel-inner {
             transform: skewX(12deg);
+        }
+
+        /* 銃・ビル・壁のサイバータクティカルUIエフェクト */
+        .glow-text-blue {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+        .glow-text-amber {
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(251, 191, 36, 0.4);
         }
 
         #crosshair {
@@ -88,12 +112,45 @@
             opacity: 0;
             transition: opacity 0.2s ease;
         }
+
+        /* ヒットマーカーアニメーション */
+        .hitmarker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%) rotate(45deg);
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0;
+            transition: opacity 0.05s ease, transform 0.08s ease;
+        }
+        .hitmarker.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) rotate(45deg) scale(1.2);
+        }
+        .hitmarker-line {
+            position: absolute;
+            background-color: #38bdf8;
+            box-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
+        }
+        .hitmarker-line.hs {
+            background-color: #ef4444 !important;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.9) !important;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-white overflow-hidden select-none">
 
     <!-- 被弾エフェクト -->
     <div id="hit-flash" class="hit-overlay"></div>
+
+    <!-- ヒットマーカー -->
+    <div id="hitmarker" class="hitmarker">
+        <div class="hitmarker-line w-full h-0.5 top-1/2 -translate-y-1/2 left-0"></div>
+        <div class="hitmarker-line h-full w-0.5 left-1/2 -translate-x-1/2 top-0"></div>
+    </div>
 
     <!-- クロスヘア (Apexスタイル) -->
     <div id="crosshair">
@@ -115,13 +172,13 @@
             <!-- チームステータス & 操作ガイド -->
             <div class="apex-panel p-3 px-5 rounded-l-none rounded-r-xl border-l-4 border-l-sky-400">
                 <div class="apex-panel-inner">
-                    <div id="player-team-badge" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-400 border border-blue-400/40 inline-block">
-                        BLUE TEAM
+                    <div id="player-team-badge" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-400 border border-blue-400/40 inline-block glow-text-blue">
+                        BLUE SQUAD - TACTICAL
                     </div>
-                    <div id="round-display" class="text-xs text-amber-400 font-black mt-1">ROUND 1 / 3</div>
+                    <div id="round-display" class="text-xs text-amber-400 font-black mt-1 glow-text-amber">ROUND 1 / 3</div>
                     <div id="speed-display" class="text-[10px] text-sky-400 font-bold">STATE: WALKING (WALK 0/3)</div>
                     <div class="text-[10px] text-slate-300 mt-1 font-medium">
-                        [W/A/S/D] 移動 (W維持で助走/スプリント) | [P] ADS(武器スコープ覗き込み) | [Shift/C] スライディング | [Space] ジャンプ | [R] リロード
+                        [W/A/S/D] 移動 | [P / 右クリック] スコープ覗き込み | [Shift/C] スライド | [Space] ジャンプ | [R] リロード | [ESC] ポーズ設定
                     </div>
                 </div>
             </div>
@@ -131,11 +188,11 @@
                 <div class="apex-panel-inner flex items-center gap-6">
                     <div class="text-center">
                         <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest">KILLS</p>
-                        <p id="score-blue" class="text-3xl font-black text-blue-400">0</p>
+                        <p id="score-blue" class="text-3xl font-black text-blue-400 glow-text-blue">0</p>
                     </div>
-                    <div class="text-amber-400 font-black text-xl italic">/</div>
+                    <div class="text-amber-400 font-black text-xl italic glow-text-amber">/</div>
                     <div class="text-center">
-                        <p class="text-[10px] font-black text-red-400 uppercase tracking-widest">TOTAL BOTS</p>
+                        <p class="text-[10px] font-black text-red-400 uppercase tracking-widest">TARGETS</p>
                         <p id="score-red" class="text-3xl font-black text-red-400">15</p>
                     </div>
                 </div>
@@ -249,12 +306,24 @@
             </div>
 
             <!-- BOT総数設定 (15~25) -->
-            <div class="mb-6 text-left">
+            <div class="mb-4 text-left">
                 <div class="flex justify-between items-center mb-1">
                     <label class="text-[11px] font-black text-amber-400 tracking-wider">TOTAL BOTS (15-25体 / 3ラウンド)</label>
                     <span id="bot-count-display" class="text-xs font-black text-amber-400">15 BOTS</span>
                 </div>
                 <input id="input-bot-count" type="range" min="15" max="25" value="15" class="w-full accent-amber-400 cursor-pointer" />
+            </div>
+
+            <!-- サウンド & 感度設定 -->
+            <div class="mb-5 text-left grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 block mb-1">マスター音量</label>
+                    <input id="input-volume" type="range" min="0" max="100" value="70" class="w-full accent-sky-400 cursor-pointer" />
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 block mb-1">エイム感度</label>
+                    <input id="input-sens" type="range" min="1" max="20" value="10" class="w-full accent-sky-400 cursor-pointer" />
+                </div>
             </div>
 
             <!-- スタートボタン -->
@@ -266,10 +335,105 @@
     </div>
 
     <script type="module">
+        // --- WEB AUDIO API (DYNAMIC SOUND GENERATOR) ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.volume = 0.7;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playShoot(type) {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                if (type === 'sniper') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.35);
+                    gain.gain.setValueAtTime(0.5 * this.volume, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'shotgun') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.25);
+                    gain.gain.setValueAtTime(0.4 * this.volume, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(450, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.12);
+                    gain.gain.setValueAtTime(0.3 * this.volume, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                }
+            }
+
+            playHit(isHeadshot = false) {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(isHeadshot ? 1200 : 700, now);
+                osc.frequency.exponentialRampToValueAtTime(isHeadshot ? 1800 : 300, now + 0.08);
+
+                gain.gain.setValueAtTime(0.25 * this.volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+
+            playReload() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(500, now + 0.15);
+
+                gain.gain.setValueAtTime(0.15 * this.volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        const sound = new SoundFX();
+
         // --- THREE.JS 3D SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0f1d);
-        scene.fog = new THREE.FogExp2(0x0a0f1d, 0.008);
+        scene.background = new THREE.Color(0x060913);
+        scene.fog = new THREE.FogExp2(0x060913, 0.007);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -277,46 +441,139 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
         document.body.appendChild(renderer.domElement);
 
         // Lights
-        const ambientLight = new THREE.AmbientLight(0x94a3b8, 1.2);
+        const ambientLight = new THREE.AmbientLight(0x94a3b8, 1.0);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xfff1f2, 1.8);
-        dirLight.position.set(50, 80, 30);
+        const dirLight = new THREE.DirectionalLight(0xfff1f2, 1.6);
+        dirLight.position.set(60, 100, 40);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         scene.add(dirLight);
 
-        // --- MAP BUILDER (RANDOM PROCEDURAL OBSTACLES) ---
+        // サイバー/リアル質感動的テクスチャ生成機能
+        function generateBuildingTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            // ベース壁面コンクリート/パネル
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, 512, 512);
+
+            // パネルの継ぎ目グリッド
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 4;
+            for (let i = 0; i < 512; i += 64) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
+            }
+
+            // ガラス窓の発光パターン
+            for (let y = 16; y < 512; y += 64) {
+                for (let x = 12; x < 512; x += 32) {
+                    if (Math.random() > 0.3) {
+                        ctx.fillStyle = Math.random() > 0.85 ? '#38bdf8' : (Math.random() > 0.9 ? '#fbbf24' : '#0284c7');
+                        ctx.fillRect(x, y, 20, 36);
+                    } else {
+                        ctx.fillStyle = '#090d16';
+                        ctx.fillRect(x, y, 20, 36);
+                    }
+                }
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+
+        function generateContainerTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#1d4ed8'; ctx.fillRect(0, 0, 256, 256);
+            
+            // 縦ストライプ（コンテナ凹凸感）
+            for (let x = 0; x < 256; x += 16) {
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.fillRect(x, 0, 6, 256);
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.fillRect(x + 6, 0, 4, 256);
+            }
+
+            // 警告ロゴマーク風デカール
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.arc(128, 128, 30, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('HAZARD', 128, 136);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const buildingTex = generateBuildingTexture();
+        buildingTex.repeat.set(2, 4);
+
+        const containerTex = generateContainerTexture();
+
+        // Materials
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8, metalness: 0.2 });
+        const buildingMat = new THREE.MeshStandardMaterial({ map: buildingTex, roughness: 0.4, metalness: 0.6 });
+        const containerMaterial = new THREE.MeshStandardMaterial({ map: containerTex, roughness: 0.5, metalness: 0.5 });
+        const hazardMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3, metalness: 0.7 });
+        const neonGlassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.6, roughness: 0.1 });
+
+        // Base Ground
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), floorMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // グラウンドの格子ライン装飾
+        const gridHelper = new THREE.GridHelper(240, 40, 0x38bdf8, 0x1e293b);
+        gridHelper.position.y = 0.05;
+        scene.add(gridHelper);
+
         let colliders = [];
         let coverObstacles = [];
         let randomObstacleGroup = new THREE.Group();
         scene.add(randomObstacleGroup);
 
-        // Materials
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.2 });
-        const highFloorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.3 });
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
-        const containerMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.4, metalness: 0.5 });
-        const crateMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.4 });
-        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3, metalness: 0.6 });
-
-        // Base Ground
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), floorMat);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        scene.add(ground);
-
-        function addBoxObstacle(x, y, z, w, h, d, mat = wallMat, parent = scene) {
+        function addBoxObstacle(x, y, z, w, h, d, mat = buildingMat, parent = scene) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             mesh.position.set(x, y + h / 2, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            parent.add(mesh);
 
+            // ビルや大きな障害物の屋上屋根・縁のリアル装飾
+            if (h > 6) {
+                const roofBorder = new THREE.Mesh(
+                    new THREE.BoxGeometry(w + 0.4, 0.4, d + 0.4),
+                    new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8 })
+                );
+                roofBorder.position.set(0, h / 2 + 0.2, 0);
+                mesh.add(roofBorder);
+
+                // ビル屋上のACユニット（空調設備・アンテナ）
+                const acUnit = new THREE.Mesh(
+                    new THREE.BoxGeometry(w * 0.3, 1.2, d * 0.3),
+                    new THREE.MeshStandardMaterial({ color: 0x475569 })
+                );
+                acUnit.position.set(0, h / 2 + 0.8, 0);
+                mesh.add(acUnit);
+            }
+
+            parent.add(mesh);
             coverObstacles.push(mesh);
 
             colliders.push({
@@ -329,56 +586,147 @@
         }
 
         function generateRandomMap() {
-            // クリーンアップ
             coverObstacles = [];
             colliders = [];
             while(randomObstacleGroup.children.length > 0) {
                 randomObstacleGroup.remove(randomObstacleGroup.children[0]);
             }
 
-            // 外周の固定境界壁
-            addBoxObstacle(0, 0, -80, 160, 10, 4, wallMat, randomObstacleGroup);
-            addBoxObstacle(-80, 0, 0, 4, 10, 160, wallMat, randomObstacleGroup);
-            addBoxObstacle(80, 0, 0, 4, 10, 160, wallMat, randomObstacleGroup);
-            addBoxObstacle(0, 0, 80, 160, 10, 4, wallMat, randomObstacleGroup);
+            // 外周の高層ビル群（マップの境界）
+            addBoxObstacle(0, 0, -95, 190, 30, 10, buildingMat, randomObstacleGroup);
+            addBoxObstacle(-95, 0, 0, 10, 30, 190, buildingMat, randomObstacleGroup);
+            addBoxObstacle(95, 0, 0, 10, 30, 190, buildingMat, randomObstacleGroup);
+            addBoxObstacle(0, 0, 95, 190, 30, 10, buildingMat, randomObstacleGroup);
 
-            // ランダム構造物の生成（プレイヤー初期位置 0, 45 周辺を除外）
-            const mats = [wallMat, containerMat, crateMat, pillarMat, highFloorMat];
-            const numObstacles = 30 + Math.floor(Math.random() * 15);
+            // アリーナ内のビル・立体コンテナ構造物群
+            const mats = [buildingMat, containerMaterial, hazardMat, neonGlassMat];
+            const numObstacles = 35 + Math.floor(Math.random() * 10);
 
             for (let i = 0; i < numObstacles; i++) {
-                let rx = (Math.random() - 0.5) * 120;
-                let rz = (Math.random() - 0.5) * 120;
+                let rx = (Math.random() - 0.5) * 140;
+                let rz = (Math.random() - 0.5) * 140;
                 
-                // プレイヤーの初期スポーン地点付近には障害物を置かない
-                if (Math.abs(rx) < 15 && Math.abs(rz - 45) < 15) continue;
+                if (Math.abs(rx) < 18 && Math.abs(rz - 45) < 18) continue;
 
-                let rw = 3 + Math.random() * 12;
-                let rh = 2.5 + Math.random() * 6;
-                let rd = 3 + Math.random() * 12;
-                let rMat = mats[Math.floor(Math.random() * mats.length)];
+                let isBuilding = Math.random() > 0.45;
+                let rw = isBuilding ? (8 + Math.random() * 10) : (4 + Math.random() * 6);
+                let rh = isBuilding ? (12 + Math.random() * 18) : (3 + Math.random() * 4);
+                let rd = isBuilding ? (8 + Math.random() * 10) : (4 + Math.random() * 6);
+                let rMat = isBuilding ? buildingMat : mats[Math.floor(Math.random() * mats.length)];
 
                 addBoxObstacle(rx, 0, rz, rw, rh, rd, rMat, randomObstacleGroup);
             }
+        }
+
+        // --- HUMANOID BOT GENERATOR ---
+        const remotePlayers = new Map();
+
+        function createHumanoidBot(id, name) {
+            const botGroup = new THREE.Group();
+            botGroup.userData = {
+                id: id,
+                name: name,
+                team: 'red',
+                health: 100,
+                shield: 100,
+                moveDirection: new THREE.Vector3((Math.random() - 0.5), 0, (Math.random() - 0.5)).normalize()
+            };
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4 });
+            const jointMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.3 });
+            const visorMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.1 });
+
+            // Torso
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), bodyMat);
+            torso.position.y = 1.05;
+            torso.castShadow = true;
+            botGroup.add(torso);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), bodyMat);
+            head.position.y = 1.6;
+            head.castShadow = true;
+            botGroup.add(head);
+
+            // Visor
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.05), visorMat);
+            visor.position.set(0, 1.62, -0.14);
+            botGroup.add(visor);
+
+            // Limbs
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.6, 0.14), jointMat);
+            armL.position.set(-0.35, 1.0, 0);
+            botGroup.add(armL);
+
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.6, 0.14), jointMat);
+            armR.position.set(0.35, 1.0, 0);
+            botGroup.add(armR);
+
+            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.7, 0.18), jointMat);
+            legL.position.set(-0.16, 0.35, 0);
+            botGroup.add(legL);
+
+            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.7, 0.18), jointMat);
+            legR.position.set(0.16, 0.35, 0);
+            botGroup.add(legR);
+
+            // UI Nameplate & HP Bar
+            const nameEl = document.createElement('div');
+            nameEl.className = 'player-nameplate';
+            nameEl.innerHTML = `
+                <div class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-600/80 text-white border border-red-400/50">
+                    ${name}
+                </div>
+                <div class="w-12 bg-slate-900/90 h-1 rounded overflow-hidden border border-slate-700">
+                    <div class="bot-hp-bar bg-red-500 h-full w-full transition-all duration-75"></div>
+                </div>
+            `;
+            document.getElementById('nametag-container').appendChild(nameEl);
+            botGroup.userData.nameEl = nameEl;
+            botGroup.userData.hpBarEl = nameEl.querySelector('.bot-hp-bar');
+
+            scene.add(botGroup);
+            remotePlayers.set(id, botGroup);
+            return botGroup;
+        }
+
+        // --- BULLET TRACERS ---
+        function createBulletTracer(fromPos, toPos) {
+            const points = [fromPos, toPos];
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({
+                color: currentWeapon.color,
+                transparent: true,
+                opacity: 0.8,
+                linewidth: 2
+            });
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+
+            setTimeout(() => {
+                scene.remove(line);
+                geometry.dispose();
+                material.dispose();
+            }, 60);
         }
 
         // --- WEAPON CONFIGURATIONS ---
         const WEAPONS = {
             ar: { 
                 name: "ASSAULT RIFLE", ammo: 30, damage: 20, headDamage: 36, fireRate: 0.11, bullets: 1, spread: 0.012, color: 0x38bdf8,
-                hipPos: new THREE.Vector3(0.2, -0.22, -0.5), adsPos: new THREE.Vector3(0, -0.108, -0.28)
+                hipPos: new THREE.Vector3(0.2, -0.22, -0.5), adsPos: new THREE.Vector3(0, -0.108, -0.12)
             },
             smg: { 
                 name: "SUBMACHINE GUN", ammo: 35, damage: 13, headDamage: 24, fireRate: 0.065, bullets: 1, spread: 0.025, color: 0xa855f7,
-                hipPos: new THREE.Vector3(0.16, -0.18, -0.38), adsPos: new THREE.Vector3(0, -0.098, -0.22)
+                hipPos: new THREE.Vector3(0.16, -0.18, -0.38), adsPos: new THREE.Vector3(0, -0.098, -0.10)
             },
             shotgun: { 
                 name: "SHOTGUN", ammo: 8, damage: 11, headDamage: 18, fireRate: 0.65, bullets: 8, spread: 0.07, color: 0xf97316,
-                hipPos: new THREE.Vector3(0.22, -0.24, -0.55), adsPos: new THREE.Vector3(0, -0.118, -0.32)
+                hipPos: new THREE.Vector3(0.22, -0.24, -0.55), adsPos: new THREE.Vector3(0, -0.118, -0.14)
             },
             sniper: { 
                 name: "SNIPER RIFLE", ammo: 5, damage: 90, headDamage: 175, fireRate: 1.1, bullets: 1, spread: 0.001, color: 0xef4444,
-                hipPos: new THREE.Vector3(0.24, -0.25, -0.7), adsPos: new THREE.Vector3(0, -0.128, -0.35)
+                hipPos: new THREE.Vector3(0.24, -0.25, -0.7), adsPos: new THREE.Vector3(0, -0.128, -0.15)
             }
         };
 
@@ -386,123 +734,193 @@
         let selectedScopeZoom = 1.0;
         let isADS = false;
 
-        // --- DYNAMIC WEAPON MESH BUILDER ---
+        // --- DYNAMIC REALISTIC WEAPON MESH BUILDER ---
         const weaponGroup = new THREE.Group();
-        let muzzleTipObject = new THREE.Object3D(); // 銃口位置追跡アンカー
+        let muzzleTipObject = new THREE.Object3D();
 
         function buildWeaponMesh(type, scopeZoom) {
-            // クリア既存メッシュ
             while(weaponGroup.children.length > 0){ 
                 weaponGroup.remove(weaponGroup.children[0]); 
             }
 
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 });
-            const barrelMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.95, roughness: 0.2 });
-            const accentMat = new THREE.MeshStandardMaterial({ color: currentWeapon.color, metalness: 0.5 });
-            const scopeMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 });
-            const glassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, opacity: 0.7, transparent: true });
+            const gunBodyMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.25, metalness: 0.85 });
+            const gunMetalMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.2, metalness: 0.95 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: currentWeapon.color, metalness: 0.6, roughness: 0.3 });
+            const scopeBodyMat = new THREE.MeshStandardMaterial({ color: 0x030712, roughness: 0.2, metalness: 0.9 });
+            const glassMat = new THREE.MeshPhysicalMaterial({
+                color: 0x38bdf8, transparent: true, opacity: 0.2, roughness: 0.1, transmission: 0.9, ior: 1.3
+            });
 
-            let barrelLen = 0.5;
             let muzzleZ = -0.7;
 
-            if (type === 'smg') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.35), bodyMat);
+            // アサルトリフレ (AR) - タクティカル本格構造
+            if (type === 'ar') {
+                // レシーバー（ボディ本体）
+                const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.38), gunBodyMat);
+                receiver.position.set(0, 0, -0.25);
+                weaponGroup.add(receiver);
+
+                // ピカティニーレール（トップレール）
+                const rail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.45), gunMetalMat);
+                rail.position.set(0, 0.06, -0.28);
+                weaponGroup.add(rail);
+
+                // ハンドガード（冷却ホール構造付き）
+                const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.075, 0.28), gunMetalMat);
+                handguard.position.set(0, 0.01, -0.52);
+                weaponGroup.add(handguard);
+
+                // バレル＆フラッシュハイダー
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.4), gunMetalMat);
+                barrel.rotation.x = Math.PI / 2;
+                barrel.position.set(0, 0.015, -0.72);
+                weaponGroup.add(barrel);
+
+                const flashHider = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.06), accentMat);
+                flashHider.rotation.x = Math.PI / 2;
+                flashHider.position.set(0, 0.015, -0.93);
+                weaponGroup.add(flashHider);
+
+                // 湾曲タクティカルマガジン
+                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.24, 0.08), accentMat);
+                mag.position.set(0, -0.12, -0.28);
+                mag.rotation.x = 0.25;
+                weaponGroup.add(mag);
+
+                // ピストルグリップ＆伸縮ストック
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.14, 0.06), gunBodyMat);
+                grip.position.set(0, -0.1, -0.1);
+                grip.rotation.x = -0.35;
+                weaponGroup.add(grip);
+
+                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.11, 0.22), gunBodyMat);
+                stock.position.set(0, 0.01, 0.04);
+                weaponGroup.add(stock);
+
+                muzzleZ = -0.96;
+
+            // サブマシンガン (SMG) - 高速・コンパクト
+            } else if (type === 'smg') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 0.3), gunBodyMat);
                 body.position.set(0, 0, -0.2);
                 weaponGroup.add(body);
 
-                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.05), accentMat);
-                mag.position.set(0, -0.1, -0.22);
-                weaponGroup.add(mag);
+                const drumMag = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.06), accentMat);
+                drumMag.position.set(0, -0.08, -0.22);
+                weaponGroup.add(drumMag);
 
-                barrelLen = 0.25;
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, barrelLen), barrelMat);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22), gunMetalMat);
                 barrel.rotation.x = Math.PI / 2;
-                barrel.position.set(0, 0.02, -0.42);
+                barrel.position.set(0, 0.01, -0.42);
                 weaponGroup.add(barrel);
-                muzzleZ = -0.55;
 
-            } else if (type === 'ar') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.5), bodyMat);
-                body.position.set(0, 0, -0.3);
-                weaponGroup.add(body);
+                const foregrip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.1, 0.04), gunBodyMat);
+                foregrip.position.set(0, -0.07, -0.34);
+                weaponGroup.add(foregrip);
 
-                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.07), accentMat);
-                mag.position.set(0, -0.12, -0.32);
-                mag.rotation.x = 0.2;
-                weaponGroup.add(mag);
+                muzzleZ = -0.54;
 
-                barrelLen = 0.45;
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, barrelLen), barrelMat);
-                barrel.rotation.x = Math.PI / 2;
-                barrel.position.set(0, 0.03, -0.65);
-                weaponGroup.add(barrel);
-                muzzleZ = -0.88;
-
+            // ショットガン (Shotgun) - 重厚なダブルバレル・ヒートシールド
             } else if (type === 'shotgun') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.13, 0.55), bodyMat);
-                body.position.set(0, 0, -0.32);
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.11, 0.4), gunBodyMat);
+                body.position.set(0, 0, -0.25);
                 weaponGroup.add(body);
 
-                const pump = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.08, 0.18), accentMat);
-                pump.position.set(0, -0.03, -0.48);
+                const pump = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.18), accentMat);
+                pump.position.set(0, -0.03, -0.42);
                 weaponGroup.add(pump);
 
-                barrelLen = 0.5;
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, barrelLen), barrelMat);
+                // メインバレル & 下部チューブマガジン
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.52), gunMetalMat);
                 barrel.rotation.x = Math.PI / 2;
-                barrel.position.set(0, 0.03, -0.72);
+                barrel.position.set(0, 0.025, -0.65);
                 weaponGroup.add(barrel);
-                muzzleZ = -0.98;
 
+                const tubeMag = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.48), gunMetalMat);
+                tubeMag.rotation.x = Math.PI / 2;
+                tubeMag.position.set(0, -0.015, -0.63);
+                weaponGroup.add(tubeMag);
+
+                muzzleZ = -0.92;
+
+            // スナイパーライフル (Sniper) - 長尺精密バレル & バイポッド（二脚）
             } else if (type === 'sniper') {
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.15, 0.7), bodyMat);
-                body.position.set(0, 0, -0.4);
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.55), gunBodyMat);
+                body.position.set(0, 0, -0.35);
                 weaponGroup.add(body);
 
-                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.25), accentMat);
-                stock.position.set(0, -0.02, -0.02);
-                weaponGroup.add(stock);
+                const boltHandle = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), accentMat);
+                boltHandle.position.set(0.06, 0.04, -0.25);
+                weaponGroup.add(boltHandle);
 
-                barrelLen = 0.85;
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.018, barrelLen), barrelMat);
-                barrel.rotation.x = Math.PI / 2;
-                barrel.position.set(0, 0.04, -0.95);
-                weaponGroup.add(barrel);
-                muzzleZ = -1.38;
+                const longBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.95), gunMetalMat);
+                longBarrel.rotation.x = Math.PI / 2;
+                longBarrel.position.set(0, 0.02, -0.98);
+                weaponGroup.add(longBarrel);
+
+                // バイポッド（二脚）
+                const bipodL = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.22), gunMetalMat);
+                bipodL.rotation.z = -0.4;
+                bipodL.position.set(-0.06, -0.08, -0.8);
+                weaponGroup.add(bipodL);
+
+                const bipodR = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.22), gunMetalMat);
+                bipodR.rotation.z = 0.4;
+                bipodR.position.set(0.06, -0.08, -0.8);
+                weaponGroup.add(bipodR);
+
+                muzzleZ = -1.46;
             }
 
-            // --- 武器マウントスコープ（覗き込み時にカメラ中心へジャスト合わせ） ---
+            // --- 精密マウントスコープ（倍率別光学チューブ構造） ---
             const scopeGroup = new THREE.Group();
-            const mount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.08), scopeMat);
+            const mount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.1), scopeBodyMat);
             mount.position.set(0, 0.07, -0.28);
             scopeGroup.add(mount);
 
-            let scopeTubeLen = 0.12 + (scopeZoom * 0.04);
-            let scopeRadius = 0.022 + (scopeZoom * 0.005);
-            const tube = new THREE.Mesh(new THREE.CylinderGeometry(scopeRadius, scopeRadius, scopeTubeLen), scopeMat);
+            let scopeTubeLen = 0.16 + (scopeZoom * 0.04);
+            let scopeRadius = 0.026 + (scopeZoom * 0.005);
+            const tube = new THREE.Mesh(new THREE.CylinderGeometry(scopeRadius, scopeRadius, scopeTubeLen), scopeBodyMat);
             tube.rotation.x = Math.PI / 2;
             tube.position.set(0, 0.108, -0.28);
             scopeGroup.add(tube);
 
-            const lens = new THREE.Mesh(new THREE.CircleGeometry(scopeRadius * 0.9, 16), glassMat);
-            lens.position.set(0, 0.108, -0.28 + scopeTubeLen / 2 + 0.001);
+            const rim = new THREE.Mesh(new THREE.TorusGeometry(scopeRadius, 0.003, 16, 32), scopeBodyMat);
+            rim.position.set(0, 0.108, -0.28 + scopeTubeLen / 2 + 0.001);
+            scopeGroup.add(rim);
+
+            const lens = new THREE.Mesh(new THREE.CircleGeometry(scopeRadius * 0.92, 32), glassMat);
+            lens.position.set(0, 0.108, -0.28 + scopeTubeLen / 2 + 0.002);
             scopeGroup.add(lens);
 
-            // レティクル十字線（レンズ内部）
-            const reticleMat = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
-            const reticleGeo = new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(-scopeRadius * 0.7, 0, 0), new THREE.Vector3(scopeRadius * 0.7, 0, 0),
-                new THREE.Vector3(0, -scopeRadius * 0.7, 0), new THREE.Vector3(0, scopeRadius * 0.7, 0)
+            // 光学レティクル (3Dドット/十字スリット)
+            const reticleGroup = new THREE.Group();
+            const reticleMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.0015, 8, 8), reticleMat);
+            reticleGroup.add(dot);
+
+            const ringGeo = new THREE.RingGeometry(scopeRadius * 0.35, scopeRadius * 0.38, 32);
+            const ring = new THREE.Mesh(ringGeo, reticleMat);
+            reticleGroup.add(ring);
+
+            const crossGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-scopeRadius * 0.75, 0, 0), new THREE.Vector3(-scopeRadius * 0.42, 0, 0),
+                new THREE.Vector3(scopeRadius * 0.42, 0, 0), new THREE.Vector3(scopeRadius * 0.75, 0, 0),
+                new THREE.Vector3(0, -scopeRadius * 0.75, 0), new THREE.Vector3(0, -scopeRadius * 0.42, 0),
+                new THREE.Vector3(0, scopeRadius * 0.42, 0), new THREE.Vector3(0, scopeRadius * 0.75, 0)
             ]);
-            const reticleLines = new THREE.LineSegments(reticleGeo, reticleMat);
-            reticleLines.position.set(0, 0.108, -0.28 + scopeTubeLen / 2 + 0.002);
-            scopeGroup.add(reticleLines);
+            const crossLines = new THREE.LineSegments(crossGeo, new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 }));
+            reticleGroup.add(crossLines);
+
+            reticleGroup.position.set(0, 0.108, -0.28 + scopeTubeLen / 2 + 0.003);
+            scopeGroup.add(reticleGroup);
 
             weaponGroup.add(scopeGroup);
 
-            // 銃口の先端位置アンカーを設定
+            // 銃口アンカー
             muzzleTipObject = new THREE.Object3D();
-            muzzleTipObject.position.set(0, 0.03, muzzleZ);
+            muzzleTipObject.position.set(0, 0.02, muzzleZ);
             weaponGroup.add(muzzleTipObject);
 
             weaponGroup.position.copy(currentWeapon.hipPos);
@@ -548,6 +966,7 @@
         let killsTotal = 0;
         let botLevel = 5;
         let gameActive = false;
+        let mouseSensMultiplier = 1.0;
 
         // Key Inputs
         const keys = { w: false, a: false, s: false, d: false };
@@ -557,9 +976,23 @@
         let shootCooldown = 0;
 
         document.body.addEventListener('click', () => {
+            sound.init();
             if (gameActive && document.pointerLockElement !== document.body) {
                 document.body.requestPointerLock();
             }
+        });
+
+        // 右クリックでのADS（覗き込み）対応
+        window.addEventListener('contextmenu', (e) => e.preventDefault());
+        window.addEventListener('mousedown', (e) => {
+            if (!gameActive || document.pointerLockElement !== document.body) return;
+            if (e.button === 0) isMouseDown = true;
+            if (e.button === 2) setADS(true);
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) isMouseDown = false;
+            if (e.button === 2) setADS(false);
         });
 
         window.addEventListener('keydown', (e) => {
@@ -571,9 +1004,9 @@
 
             if (e.code === 'KeyR') reloadWeapon();
 
-            // Pキーでスコープを覗く (ADS トグル)
-            if (e.code === 'KeyP') {
-                toggleADS();
+            // Pキーを押し続けている間のみスコープ（ADS）オン
+            if (e.code === 'KeyP' && !e.repeat) {
+                setADS(true);
             }
 
             if (e.code === 'Space' && player.isGrounded) {
@@ -600,35 +1033,43 @@
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
-        });
 
-        window.addEventListener('mousedown', (e) => {
-            if (!gameActive || document.pointerLockElement !== document.body) return;
-            if (e.button === 0) isMouseDown = true;
-        });
-
-        window.addEventListener('mouseup', (e) => {
-            if (e.button === 0) isMouseDown = false;
+            if (e.code === 'KeyP') {
+                setADS(false);
+            }
         });
 
         window.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === document.body) {
-                const sens = isADS ? 0.0012 : 0.0022;
+                const baseSens = isADS ? 0.0012 : 0.0022;
+                const sens = baseSens * mouseSensMultiplier;
                 yaw -= e.movementX * sens;
                 pitch -= e.movementY * sens;
                 pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
             }
         });
 
-        function toggleADS() {
-            isADS = !isADS;
+        function setADS(active) {
+            isADS = active;
             const crosshair = document.getElementById('crosshair');
             crosshair.style.opacity = isADS ? '0' : '1';
+        }
+
+        function triggerHitmarker(isHeadshot = false) {
+            const hm = document.getElementById('hitmarker');
+            const lines = hm.querySelectorAll('.hitmarker-line');
+            lines.forEach(l => {
+                if (isHeadshot) l.classList.add('hs');
+                else l.classList.remove('hs');
+            });
+            hm.classList.add('active');
+            setTimeout(() => hm.classList.remove('active'), 120);
         }
 
         function reloadWeapon() {
             if (player.isReloading || player.ammo === player.maxAmmo) return;
             player.isReloading = true;
+            sound.playReload();
             weaponGroup.rotation.x = -0.5;
 
             setTimeout(() => {
@@ -639,71 +1080,7 @@
             }, 1200);
         }
 
-        // --- HUMANOID BOTS (WITH SHIELDS) ---
-        const remotePlayers = new Map();
-        const nametagContainer = document.getElementById('nametag-container');
-        const redPlayerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4, metalness: 0.3 });
-
-        function createHumanoidBot(id, name) {
-            const group = new THREE.Group();
-
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), redPlayerMat);
-            torso.position.y = 1.05; torso.castShadow = true; group.add(torso);
-
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), redPlayerMat);
-            head.position.y = 1.6; head.castShadow = true; group.add(head);
-
-            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.1), new THREE.MeshBasicMaterial({ color: 0xff8888 }));
-            visor.position.set(0, 1.62, -0.16); group.add(visor);
-
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), redPlayerMat);
-            armL.position.set(-0.4, 1.0, 0); group.add(armL);
-            const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), redPlayerMat);
-            armR.position.set(0.4, 1.0, 0); group.add(armR);
-
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), redPlayerMat);
-            legL.position.set(-0.18, 0.35, 0); group.add(legL);
-            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), redPlayerMat);
-            legR.position.set(0.18, 0.35, 0); group.add(legR);
-
-            const nameEl = document.createElement('div');
-            nameEl.className = 'player-nameplate';
-            nameEl.innerHTML = `
-                <div class="text-[10px] font-black text-red-400 drop-shadow">${name}</div>
-                <div class="w-14 bg-slate-950/90 h-1.5 rounded overflow-hidden border border-slate-700">
-                    <div class="hp-bar bg-emerald-400 h-full w-full"></div>
-                </div>
-            `;
-            nametagContainer.appendChild(nameEl);
-
-            group.userData = {
-                id: id, name: name, team: 'red', health: 100, shield: 100,
-                nameEl: nameEl, hpBarEl: nameEl.querySelector('.hp-bar'), shootTimer: 0,
-                moveDirection: new THREE.Vector3((Math.random() - 0.5), 0, (Math.random() - 0.5)).normalize()
-            };
-
-            scene.add(group);
-            remotePlayers.set(id, group);
-            return group;
-        }
-
         // --- SHOOTING & BULLET TRACERS WITH OBSTACLE BLOCKING ---
-        function createBulletTracer(start, target) {
-            const mat = new THREE.LineBasicMaterial({ color: currentWeapon.color, opacity: 0.9, transparent: true, linewidth: 2 });
-            const geo = new THREE.BufferGeometry().setFromPoints([start, target]);
-            const line = new THREE.Line(geo, mat);
-            scene.add(line);
-
-            let opacity = 0.9;
-            const fade = setInterval(() => {
-                opacity -= 0.2;
-                mat.opacity = opacity;
-                if (opacity <= 0) {
-                    scene.remove(line); geo.dispose(); mat.dispose(); clearInterval(fade);
-                }
-            }, 30);
-        }
-
         function fireWeapon() {
             if (player.isReloading) return;
             if (player.ammo <= 0) {
@@ -713,6 +1090,8 @@
 
             player.ammo--;
             updateHUD();
+
+            sound.playShoot(document.getElementById('select-weapon').value);
 
             muzzleLight.intensity = 4.0;
             setTimeout(() => { muzzleLight.intensity = 0; }, 30);
@@ -764,6 +1143,8 @@
                             targetGroup.userData.health -= damage;
                         }
 
+                        sound.playHit(isHead);
+                        triggerHitmarker(isHead);
                         spawnDamageNumber(hitPoint, Math.round(isHead ? currentWeapon.headDamage : currentWeapon.damage), isHead, isShieldHit);
 
                         const hpPct = Math.max(0, (targetGroup.userData.health / 100) * 100);
@@ -912,6 +1293,7 @@
 
         // --- GAME START ---
         function startGame() {
+            sound.init();
             player.name = document.getElementById('input-player-name').value || 'Legend1';
             const weaponKey = document.getElementById('select-weapon').value || 'ar';
             currentWeapon = WEAPONS[weaponKey];
@@ -921,6 +1303,13 @@
             selectedScopeZoom = parseFloat(document.getElementById('select-scope').value) || 1.0;
             botLevel = parseInt(document.getElementById('input-bot-level').value) || 5;
             totalBots = parseInt(document.getElementById('input-bot-count').value) || 15;
+
+            // 音量・感度設定の適用
+            const volVal = parseInt(document.getElementById('input-volume').value) || 70;
+            sound.volume = volVal / 100;
+
+            const sensVal = parseInt(document.getElementById('input-sens').value) || 10;
+            mouseSensMultiplier = sensVal / 10;
 
             // ランダムマップ再生成
             generateRandomMap();
