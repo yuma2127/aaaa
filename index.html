@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tactical PvP Arena 3D - Online Multiplayer FPS</title>
+    <title>Tactical PvP FPS Arena - Apex Firing Range Style</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -11,9 +11,22 @@
             margin: 0;
             overflow: hidden;
             user-select: none;
-            background-color: #090d16;
+            background-color: #080d16;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+        
+        /* Apexスタイルの斜めパネル */
+        .apex-panel {
+            transform: skewX(-12deg);
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(56, 189, 248, 0.1);
+            backdrop-filter: blur(8px);
+        }
+        .apex-panel-inner {
+            transform: skewX(12deg);
+        }
+
         #crosshair {
             position: absolute;
             top: 50%;
@@ -22,33 +35,34 @@
             pointer-events: none;
             z-index: 10;
         }
+
+        /* ダメージ数値のポップアップアニメーション */
         .damage-number {
             position: absolute;
             font-weight: 900;
             font-size: 1.6rem;
-            text-shadow: 0 0 8px rgba(0,0,0,0.9);
+            text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,1);
             pointer-events: none;
-            animation: floatUp 0.6s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+            animation: floatUpApex 0.7s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
             z-index: 25;
+            font-family: monospace;
         }
-        @keyframes floatUp {
-            0% { opacity: 1; transform: translateY(0) scale(1.3); }
-            100% { opacity: 0; transform: translateY(-35px) scale(0.8); }
+        @keyframes floatUpApex {
+            0% { opacity: 1; transform: translateY(0) scale(1.4); }
+            50% { opacity: 1; transform: translateY(-20px) scale(1.1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
         }
-        .hud-panel {
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(8px);
-        }
+
         .hit-overlay {
             position: absolute;
             inset: 0;
             pointer-events: none;
             z-index: 20;
-            background: radial-gradient(circle, transparent 50%, rgba(239, 68, 68, 0.5) 100%);
+            background: radial-gradient(circle, transparent 40%, rgba(239, 68, 68, 0.6) 100%);
             opacity: 0;
-            transition: opacity 0.12s ease;
+            transition: opacity 0.1s ease;
         }
+
         .player-nameplate {
             position: absolute;
             transform: translate(-50%, -100%);
@@ -67,206 +81,165 @@
     <!-- 被弾エフェクト -->
     <div id="hit-flash" class="hit-overlay"></div>
 
-    <!-- クロスヘア -->
-    <div id="crosshair" class="flex flex-col items-center justify-center">
-        <svg id="crosshair-svg" width="28" height="28" viewBox="0 0 36 36" fill="none" class="drop-shadow-[0_0_6px_rgba(59,130,246,0.9)]">
-            <circle cx="18" cy="18" r="1.5" fill="#60a5fa" />
-            <line x1="18" y1="4" x2="18" y2="10" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
-            <line x1="18" y1="26" x2="18" y2="32" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
-            <line x1="4" y1="18" x2="10" y2="18" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
-            <line x1="26" y1="18" x2="32" y2="18" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" />
+    <!-- クロスヘア (Apexスタイル) -->
+    <div id="crosshair">
+        <svg id="crosshair-svg" width="32" height="32" viewBox="0 0 36 36" fill="none" class="drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]">
+            <circle cx="18" cy="18" r="2" fill="#38bdf8" />
+            <line x1="18" y1="6" x2="18" y2="12" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="18" y1="24" x2="18" y2="30" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="6" y1="18" x2="12" y2="18" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="24" y1="18" x2="30" y2="18" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" />
         </svg>
     </div>
 
     <!-- HUD (ゲーム画面オーバーレイ) -->
-    <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-4 hidden">
+    <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-6 hidden">
         
-        <!-- 上部ヘッダー (スコアボード & ルーム情報) -->
+        <!-- 上部ヘッダー (スコア & 状況) -->
         <div class="flex justify-between items-start">
             
-            <!-- ルーム & チームステータス -->
-            <div class="hud-panel p-3 rounded-xl flex items-center gap-4">
-                <div>
-                    <div id="player-team-badge" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30">
+            <!-- チームステータス & 操作ガイド -->
+            <div class="apex-panel p-3 px-5 rounded-l-none rounded-r-xl border-l-4 border-l-sky-400">
+                <div class="apex-panel-inner">
+                    <div id="player-team-badge" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-400 border border-blue-400/40 inline-block">
                         BLUE TEAM
                     </div>
-                    <div id="room-code-display" class="text-xs text-slate-400 font-semibold mt-1">ROOM: LOCAL</div>
-                </div>
-                <div class="h-8 w-[1px] bg-slate-700"></div>
-                <div class="text-[11px] text-slate-300">
-                    <p><span class="text-amber-400">[W/A/S/D]</span>: 移動 | <span class="text-amber-400">[Shift/C]</span>: スライディング</p>
-                    <p><span class="text-amber-400">[Enter/左クリック]</span>: 射撃 | <span class="text-amber-400">[P/右クリック]</span>: ADS | <span class="text-amber-400">[R]</span>: リロード</p>
+                    <div id="room-code-display" class="text-xs text-slate-300 font-black mt-1">FIRING RANGE (BOT MATCH)</div>
+                    <div class="text-[10px] text-slate-400 mt-1">
+                        [W/A/S/D] 移動 | [Shift/C] スライディング | [Space] ジャンプ | [R] リロード
+                    </div>
                 </div>
             </div>
 
-            <!-- チームスコアボード (10キル先取) -->
-            <div class="hud-panel px-6 py-2 rounded-xl flex items-center gap-6">
-                <div class="text-center">
-                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">BLUE TEAM</p>
-                    <p id="score-blue" class="text-2xl font-black text-blue-400">0</p>
-                </div>
-                <div class="text-slate-500 font-black text-lg">VS</div>
-                <div class="text-center">
-                    <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest">RED TEAM</p>
-                    <p id="score-red" class="text-2xl font-black text-red-400">0</p>
+            <!-- スコアボード -->
+            <div class="apex-panel px-8 py-2 rounded-xl border-t-2 border-t-amber-400">
+                <div class="apex-panel-inner flex items-center gap-6">
+                    <div class="text-center">
+                        <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest">BLUE TEAM</p>
+                        <p id="score-blue" class="text-3xl font-black text-blue-400">0</p>
+                    </div>
+                    <div class="text-amber-400 font-black text-xl italic">VS</div>
+                    <div class="text-center">
+                        <p class="text-[10px] font-black text-red-400 uppercase tracking-widest">RED TEAM</p>
+                        <p id="score-red" class="text-3xl font-black text-red-400">0</p>
+                    </div>
                 </div>
             </div>
 
             <!-- キルログ -->
-            <div id="kill-log" class="flex flex-col gap-1 items-end w-48 text-[11px]"></div>
+            <div id="kill-log" class="flex flex-col gap-1 items-end w-52 text-xs"></div>
         </div>
 
-        <!-- ミニマップ & 弾薬/体力 -->
+        <!-- 下部HUD（ヘルス / シールド / 弾薬） -->
         <div class="flex justify-between items-end">
-            <!-- HP & シールド -->
-            <div class="hud-panel p-3 rounded-xl w-64 space-y-2">
-                <div>
-                    <div class="flex justify-between text-[10px] font-bold text-sky-400 mb-1">
-                        <span>SHIELD</span>
-                        <span id="shield-val">100 / 100</span>
+            
+            <!-- Apex風 HP/シールドゲージ -->
+            <div class="apex-panel p-4 rounded-xl w-72 border-b-4 border-b-emerald-400">
+                <div class="apex-panel-inner space-y-2">
+                    <!-- シールド（体力の半分の長さ） -->
+                    <div>
+                        <div class="flex justify-between text-[10px] font-black text-sky-400 mb-0.5 tracking-wider">
+                            <span>SHIELD (HARDENED)</span>
+                            <span id="shield-val">100 / 100</span>
+                        </div>
+                        <div class="w-full bg-slate-950 h-2 rounded overflow-hidden border border-slate-800">
+                            <div id="shield-bar" class="bg-gradient-to-r from-sky-500 to-cyan-300 h-full w-full transition-all duration-100"></div>
+                        </div>
                     </div>
-                    <div class="w-full bg-slate-900 h-2 rounded overflow-hidden">
-                        <div id="shield-bar" class="bg-sky-400 h-full w-full transition-all duration-150"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between text-[10px] font-bold text-emerald-400 mb-1">
-                        <span>HEALTH</span>
-                        <span id="health-val">100 / 100</span>
-                    </div>
-                    <div class="w-full bg-slate-900 h-2.5 rounded overflow-hidden">
-                        <div id="health-bar" class="bg-emerald-400 h-full w-full transition-all duration-150"></div>
+                    <!-- ヘルス -->
+                    <div>
+                        <div class="flex justify-between text-[10px] font-black text-emerald-400 mb-0.5 tracking-wider">
+                            <span>HEALTH</span>
+                            <span id="health-val">100 / 100</span>
+                        </div>
+                        <div class="w-full bg-slate-950 h-3 rounded overflow-hidden border border-slate-800">
+                            <div id="health-bar" class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full w-full transition-all duration-100"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 弾薬 & 武器情報 -->
-            <div class="hud-panel px-6 py-3 rounded-xl text-right">
-                <div id="weapon-type-display" class="text-[10px] text-amber-400 font-bold tracking-widest uppercase">ASSAULT RIFLE</div>
-                <div class="flex items-baseline justify-end gap-1">
-                    <span id="ammo-count" class="text-3xl font-black text-white">30</span>
-                    <span id="ammo-max" class="text-slate-500 font-bold text-sm">/ 30</span>
+            <!-- 弾薬 & 武器ステータス -->
+            <div class="apex-panel px-8 py-4 rounded-xl border-r-4 border-r-amber-400 text-right">
+                <div class="apex-panel-inner">
+                    <div id="weapon-type-display" class="text-xs text-amber-400 font-black tracking-widest uppercase mb-1">ASSAULT RIFLE</div>
+                    <div class="flex items-baseline justify-end gap-1">
+                        <span id="ammo-count" class="text-4xl font-black text-white tracking-tight">30</span>
+                        <span id="ammo-max" class="text-slate-500 font-bold text-sm">/ 30</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 他プレイヤーのネームプレート・HPバー用コンテナ -->
+    <!-- 他プレイヤー/ボットのネームタグコンテナ -->
     <div id="nametag-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
 
-    <!-- スタート & マルチプレイロビー画面 -->
-    <div id="start-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-30 transition-all duration-300">
-        <div class="bg-slate-900/90 border border-slate-700/80 p-8 rounded-2xl max-w-md w-[92%] text-center shadow-2xl relative">
+    <!-- スタート & モード選択画面 -->
+    <div id="start-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center z-30 transition-all duration-300">
+        <div class="bg-slate-900/90 border border-slate-700/80 p-8 rounded-2xl max-w-md w-[92%] text-center shadow-2xl relative border-t-4 border-t-sky-400">
             
-            <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-3 border border-blue-400/40">
-                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-14 h-14 bg-sky-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-sky-400/40 shadow-lg shadow-sky-500/10">
+                <svg class="w-8 h-8 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </div>
 
-            <h1 class="text-2xl md:text-3xl font-black italic tracking-wider bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
-                TACTICAL PVP FPS
+            <h1 class="text-3xl font-black italic tracking-wider bg-gradient-to-r from-sky-400 via-indigo-300 to-amber-400 bg-clip-text text-transparent">
+                FIRING RANGE FPS
             </h1>
-            <p class="text-slate-400 text-xs mt-1 mb-6">チーム対戦型 リアルタイムオンラインPvP</p>
+            <p class="text-slate-400 text-xs mt-1 mb-6 font-semibold">Apexスタイル 射撃場タクティカル対戦アリーナ</p>
 
-            <!-- 勝敗結果バナー (非表示/ゲーム終了時) -->
-            <div id="results-banner" class="hidden mb-4 p-3 bg-slate-800/90 border border-amber-500/40 rounded-xl">
+            <!-- 結果表示バナー -->
+            <div id="results-banner" class="hidden mb-5 p-3 bg-slate-800/90 border border-amber-500/50 rounded-xl">
                 <p id="result-status" class="text-lg font-black text-amber-400">MATCH FINISHED</p>
-                <p id="result-stats" class="text-xs text-slate-300 mt-0.5">SCORE: 0 - 0</p>
+                <p id="result-stats" class="text-xs text-slate-300 font-bold mt-1">SCORE: 0 - 0</p>
             </div>
 
-            <!-- プレイヤーネーム入力 -->
+            <!-- プレイヤー名入力 -->
             <div class="mb-4 text-left">
-                <label class="text-[11px] font-bold text-slate-400 block mb-1">PLAYER NAME</label>
-                <input id="input-player-name" type="text" maxlength="12" value="Player1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold" />
+                <label class="text-[11px] font-black text-slate-400 block mb-1 tracking-wider">PLAYER NAME</label>
+                <input id="input-player-name" type="text" maxlength="12" value="Legend1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500 font-semibold" />
             </div>
 
             <!-- 武器選択 -->
             <div class="mb-4 text-left">
-                <label class="text-[11px] font-bold text-slate-400 block mb-1">WEAPON TYPE</label>
-                <select id="select-weapon" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer">
-                    <option value="ar">Assault Rifle (バランス型)</option>
+                <label class="text-[11px] font-black text-slate-400 block mb-1 tracking-wider">SELECT WEAPON</label>
+                <select id="select-weapon" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500 font-semibold cursor-pointer">
+                    <option value="ar">Assault Rifle (バランス・中距離)</option>
                     <option value="smg">Submachine Gun (高連射・近距離)</option>
-                    <option value="shotgun">Shotgun (近接散弾)</option>
-                    <option value="sniper">Sniper Rifle (一撃必殺・低連射)</option>
+                    <option value="shotgun">Shotgun (近接拡散・高威力)</option>
+                    <option value="sniper">Sniper Rifle (遠距離・一撃必殺)</option>
                 </select>
             </div>
 
             <!-- ボットレベル設定 (1~9) -->
-            <div class="mb-5 text-left">
+            <div class="mb-6 text-left">
                 <div class="flex justify-between items-center mb-1">
-                    <label class="text-[11px] font-bold text-slate-400">BOT DIFFICULTY (LEVEL 1-9)</label>
+                    <label class="text-[11px] font-black text-slate-400 tracking-wider">BOT DIFFICULTY (LEVEL 1-9)</label>
                     <span id="bot-level-display" class="text-xs font-black text-amber-400">LV 5: Normal</span>
                 </div>
                 <input id="input-bot-level" type="range" min="1" max="9" value="5" class="w-full accent-amber-400 cursor-pointer" />
-                <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
+                <div class="flex justify-between text-[9px] text-slate-500 font-bold mt-1">
                     <span>1: Easy</span>
                     <span>5: Medium</span>
                     <span>9: Insane</span>
                 </div>
             </div>
 
-            <!-- ルーム入室・作成ボタン -->
-            <div class="space-y-3 mb-2">
-                <button id="btn-practice" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 py-3 rounded-xl font-bold text-sm text-white transition flex justify-center items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    VS ボット対戦スタート
-                </button>
-
-                <div class="relative my-3 flex items-center justify-center">
-                    <div class="w-full border-t border-slate-800"></div>
-                    <span class="absolute bg-slate-900 px-3 text-[10px] text-slate-500 font-bold uppercase">OR ONLINE PVP</span>
-                </div>
-
-                <div class="flex gap-2">
-                    <input id="input-room-code" type="text" placeholder="ROOM CODE" class="w-2/3 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white uppercase tracking-wider font-mono focus:outline-none focus:border-blue-500" />
-                    <button id="btn-join-room" class="w-1/3 bg-blue-600 hover:bg-blue-500 py-2.5 rounded-xl font-black text-xs text-white transition">
-                        対戦参加
-                    </button>
-                </div>
-            </div>
+            <!-- スタートボタン -->
+            <button id="btn-practice" class="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 py-3.5 rounded-xl font-black text-sm text-white transition shadow-lg shadow-sky-500/20 flex justify-center items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                射撃場対戦をスタート
+            </button>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Setup
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'pvp-fps-arena';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-
-        let db = null;
-        let auth = null;
-        let currentUser = null;
-        let roomId = null;
-        let roomUnsubscribe = null;
-
-        async function initFirebase() {
-            if (!firebaseConfig) return;
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
-                    currentUser = userCred.user;
-                } else {
-                    const userCred = await signInAnonymously(auth);
-                    currentUser = userCred.user;
-                }
-            } catch (e) {
-                console.warn("Online mode fallback to local practice:", e);
-            }
-        }
-        initFirebase();
-
-        // --- THREE.JS SCENE SETUP ---
+        // --- THREE.JS 3D SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a);
-        scene.fog = new THREE.FogExp2(0x0f172a, 0.008);
+        scene.background = new THREE.Color(0x0c1322);
+        scene.fog = new THREE.FogExp2(0x0c1322, 0.007);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -277,92 +250,96 @@
         document.body.appendChild(renderer.domElement);
 
         // Lights
-        const ambientLight = new THREE.AmbientLight(0x94a3b8, 1.0);
+        const ambientLight = new THREE.AmbientLight(0x94a3b8, 1.2);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.8);
-        dirLight.position.set(40, 60, 20);
+        const dirLight = new THREE.DirectionalLight(0xfff1f2, 1.8);
+        dirLight.position.set(50, 80, 30);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         scene.add(dirLight);
 
-        // Ground & Map Textures/Materials
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.2 });
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.5 });
-        const blueBoxMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.4 });
-        const redBoxMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, metalness: 0.4 });
-
-        // Floor
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        // Outer Boundary Walls
-        const mapSize = 150;
-        const wallH = 12;
-        const outerWallMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
-
-        const wallN = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
-        wallN.position.set(0, wallH/2, -mapSize/2); scene.add(wallN);
-        const wallS = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
-        wallS.position.set(0, wallH/2, mapSize/2); wallS.rotation.y = Math.PI; scene.add(wallS);
-        const wallE = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
-        wallE.position.set(mapSize/2, wallH/2, 0); wallE.rotation.y = -Math.PI/2; scene.add(wallE);
-        const wallW = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallH), outerWallMat);
-        wallW.position.set(-mapSize/2, wallH/2, 0); wallW.rotation.y = Math.PI/2; scene.add(wallW);
-
-        // Map Objects Colliders
+        // --- MAP BUILDER (APEX FIRING RANGE STYLE) ---
         const colliders = [];
 
-        function addBoxObstacle(x, z, w, h, d, mat = wallMat) {
+        // Materials
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.2 });
+        const highFloorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.3 });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
+        const targetMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.5 });
+        const containerMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.4, metalness: 0.5 });
+
+        // Base Ground
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), floorMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        function addBoxObstacle(x, y, z, w, h, d, mat = wallMat) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-            mesh.position.set(x, h / 2, z);
+            mesh.position.set(x, y + h / 2, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
 
             colliders.push({
-                minX: x - w / 2 - 0.5, maxX: x + w / 2 + 0.5,
-                minZ: z - d / 2 - 0.5, maxZ: z + d / 2 + 0.5,
-                height: h
+                minX: x - w / 2 - 0.6, maxX: x + w / 2 + 0.6,
+                minZ: z - d / 2 - 0.6, maxZ: z + d / 2 + 0.6,
+                minY: y, maxY: y + h,
+                height: y + h
             });
             return mesh;
         }
 
-        // Build Tactical Arena Layout
-        function buildArena() {
-            addBoxObstacle(0, 0, 10, 4, 20, blueBoxMat);
-            addBoxObstacle(-25, 10, 14, 3.5, 6, redBoxMat);
-            addBoxObstacle(25, -10, 14, 3.5, 6, redBoxMat);
+        // Firing Range Top Platform & Slopes
+        addBoxObstacle(0, 0, 45, 80, 4, 30, highFloorMat); // 高台プラットフォーム
+        addBoxObstacle(-25, 0, 15, 12, 2, 30, highFloorMat); // スロープ風台座左
+        addBoxObstacle(25, 0, 15, 12, 2, 30, highFloorMat);  // スロープ風台座右
 
-            addBoxObstacle(-18, -20, 6, 3, 6, wallMat);
-            addBoxObstacle(18, 20, 6, 3, 6, wallMat);
+        // Tactical Containers & Cover Walls
+        addBoxObstacle(0, 0, 10, 8, 3.5, 4, containerMat);
+        addBoxObstacle(-15, 0, -10, 6, 3, 12, containerMat);
+        addBoxObstacle(15, 0, -10, 6, 3, 12, containerMat);
+        addBoxObstacle(-35, 0, -25, 14, 5, 6, wallMat);
+        addBoxObstacle(35, 0, -25, 14, 5, 6, wallMat);
 
-            addBoxObstacle(-35, -35, 12, 5, 12, wallMat);
-            addBoxObstacle(35, 35, 12, 5, 12, wallMat);
-            addBoxObstacle(-35, 35, 12, 5, 12, wallMat);
-            addBoxObstacle(35, -35, 12, 5, 12, wallMat);
+        // Firing Range Target Boards
+        function addTargetBoard(x, y, z) {
+            const group = new THREE.Group();
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3), wallMat);
+            pole.position.y = 1.5;
+            group.add(pole);
+
+            const board = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.5, 0.1), targetMat);
+            board.position.y = 2.5;
+            board.castShadow = true;
+            group.add(board);
+
+            group.position.set(x, y, z);
+            scene.add(group);
         }
-        buildArena();
+
+        for (let i = -30; i <= 30; i += 10) {
+            addTargetBoard(i, 0, -35);
+            addTargetBoard(i * 1.2, 0, -55);
+        }
 
         // --- WEAPON CONFIGURATIONS ---
         const WEAPONS = {
-            ar: { name: "ASSAULT RIFLE", ammo: 30, damage: 22, headDamage: 40, fireRate: 0.1, bullets: 1, spread: 0.015, color: 0x38bdf8 },
-            smg: { name: "SUBMACHINE GUN", ammo: 40, damage: 14, headDamage: 25, fireRate: 0.06, bullets: 1, spread: 0.035, color: 0xa855f7 },
-            shotgun: { name: "SHOTGUN", ammo: 8, damage: 12, headDamage: 20, fireRate: 0.75, bullets: 8, spread: 0.08, color: 0xf97316 },
-            sniper: { name: "SNIPER RIFLE", ammo: 5, damage: 95, headDamage: 180, fireRate: 1.2, bullets: 1, spread: 0.002, color: 0xef4444 }
+            ar: { name: "ASSAULT RIFLE", ammo: 30, damage: 18, headDamage: 32, fireRate: 0.11, bullets: 1, spread: 0.012, color: 0x38bdf8 },
+            smg: { name: "SUBMACHINE GUN", ammo: 35, damage: 12, headDamage: 22, fireRate: 0.07, bullets: 1, spread: 0.028, color: 0xa855f7 },
+            shotgun: { name: "SHOTGUN", ammo: 8, damage: 10, headDamage: 16, fireRate: 0.7, bullets: 8, spread: 0.075, color: 0xf97316 },
+            sniper: { name: "SNIPER RIFLE", ammo: 5, damage: 85, headDamage: 160, fireRate: 1.1, bullets: 1, spread: 0.001, color: 0xef4444 }
         };
 
         let currentWeapon = WEAPONS.ar;
 
         // --- WEAPON MODEL ---
         const weaponGroup = new THREE.Group();
-
         const arBody = new THREE.Mesh(
-            new THREE.BoxGeometry(0.07, 0.12, 0.65),
-            new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2, metalness: 0.8 })
+            new THREE.BoxGeometry(0.08, 0.12, 0.65),
+            new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 })
         );
         arBody.position.set(0.18, -0.18, -0.45);
         weaponGroup.add(arBody);
@@ -375,45 +352,29 @@
         arBarrel.position.set(0.18, -0.15, -0.8);
         weaponGroup.add(arBarrel);
 
-        const sightMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(0.04, 0.05, 0.08),
-            new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 })
-        );
-        sightMesh.position.set(0.18, -0.09, -0.45);
-        weaponGroup.add(sightMesh);
-
-        const reticleMesh = new THREE.Mesh(
-            new THREE.CircleGeometry(0.004, 12),
-            new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
-        );
-        reticleMesh.position.set(0.18, -0.09, -0.491);
-        weaponGroup.add(reticleMesh);
-
         camera.add(weaponGroup);
         scene.add(camera);
 
-        const muzzleLight = new THREE.PointLight(0x38bdf8, 0, 4);
+        const muzzleLight = new THREE.PointLight(0x38bdf8, 0, 5);
         muzzleLight.position.set(0.18, -0.15, -0.9);
         camera.add(muzzleLight);
 
         // --- PLAYER STATE ---
         const player = {
-            id: 'local_' + Math.random().toString(36).substr(2, 6),
-            name: 'Player1',
+            name: 'Legend1',
             team: 'blue',
             height: 1.7,
             crouchHeight: 0.9,
             currentHeight: 1.7,
-            position: new THREE.Vector3(0, 1.7, 40),
+            position: new THREE.Vector3(0, 5.7, 50), // 高台からスタート
             velocity: new THREE.Vector3(),
-            baseSpeed: 0.15,
-            initialSlideSpeed: 0.45,
+            baseSpeed: 0.16,
+            slideSpeed: 0.42,
             currentSlideSpeed: 0,
             isGrounded: true,
             isSliding: false,
             slideTimer: 0,
-            slideDuration: 5.0,
-            isADS: false,
+            slideMaxDuration: 5.0, // 5秒かけて停止
             health: 100,
             shield: 100,
             ammo: 30,
@@ -424,24 +385,30 @@
         let killsBlue = 0;
         let killsRed = 0;
         let botLevel = 5;
+        let gameActive = false;
 
-        // Key & Controls
+        // Key Inputs Management
         const keys = { w: false, a: false, s: false, d: false };
         let yaw = 0;
         let pitch = 0;
         let isMouseDown = false;
-        let isEnterDown = false;
         let shootCooldown = 0;
 
+        // Pointer Lock & Movement Listeners
+        document.body.addEventListener('click', () => {
+            if (gameActive && document.pointerLockElement !== document.body) {
+                document.body.requestPointerLock();
+            }
+        });
+
         window.addEventListener('keydown', (e) => {
+            if (!gameActive) return;
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
 
             if (e.code === 'KeyR') reloadWeapon();
-            if (e.code === 'Enter' || e.code === 'NumpadEnter') isEnterDown = true;
-            if (e.code === 'KeyP') player.isADS = true;
 
             if (e.code === 'Space' && player.isGrounded) {
                 player.velocity.y = 8.5;
@@ -452,7 +419,7 @@
             if ((e.code === 'ShiftLeft' || e.code === 'KeyC') && player.isGrounded && keys.w && !player.isSliding) {
                 player.isSliding = true;
                 player.slideTimer = 0;
-                player.currentSlideSpeed = player.initialSlideSpeed;
+                player.currentSlideSpeed = player.slideSpeed;
             }
         });
 
@@ -461,27 +428,21 @@
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
-
-            if (e.code === 'Enter' || e.code === 'NumpadEnter') isEnterDown = false;
-            if (e.code === 'KeyP') player.isADS = false;
         });
 
         window.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement !== document.body) return;
+            if (!gameActive || document.pointerLockElement !== document.body) return;
             if (e.button === 0) isMouseDown = true;
-            if (e.button === 2) player.isADS = true;
         });
 
         window.addEventListener('mouseup', (e) => {
             if (e.button === 0) isMouseDown = false;
-            if (e.button === 2) player.isADS = false;
         });
 
         window.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === document.body) {
-                const sensitivity = player.isADS ? 0.0012 : 0.0022;
-                yaw -= e.movementX * sensitivity;
-                pitch -= e.movementY * sensitivity;
+                yaw -= e.movementX * 0.0022;
+                pitch -= e.movementY * 0.0022;
                 pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
             }
         });
@@ -499,97 +460,69 @@
             }, 1200);
         }
 
-        // --- REMOTE PLAYERS & HUMANOID BOT CREATION ---
+        // --- HUMANOID BOTS & RENDER ---
         const remotePlayers = new Map();
         const nametagContainer = document.getElementById('nametag-container');
 
-        const redPlayerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4, metalness: 0.2 });
-        const bluePlayerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4, metalness: 0.2 });
+        const redPlayerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4, metalness: 0.3 });
 
-        function createHumanoidMesh(team) {
+        function createHumanoidBot(id, name) {
             const group = new THREE.Group();
-            const mat = team === 'red' ? redPlayerMat : bluePlayerMat;
 
             // Torso
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), mat);
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), redPlayerMat);
             torso.position.y = 1.05;
             torso.castShadow = true;
             group.add(torso);
 
             // Head
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), mat);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), redPlayerMat);
             head.position.y = 1.6;
             head.castShadow = true;
             group.add(head);
 
             // Visor
-            const visorMat = new THREE.MeshBasicMaterial({ color: team === 'red' ? 0xff8888 : 0x88ccff });
-            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.1), visorMat);
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.1), new THREE.MeshBasicMaterial({ color: 0xff8888 }));
             visor.position.set(0, 1.62, -0.16);
             group.add(visor);
 
-            // Arms
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), mat);
-            armL.position.set(-0.4, 1.0, 0);
-            armL.castShadow = true;
-            group.add(armL);
+            // Arms & Legs
+            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), redPlayerMat);
+            armL.position.set(-0.4, 1.0, 0); group.add(armL);
+            const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), redPlayerMat);
+            armR.position.set(0.4, 1.0, 0); group.add(armR);
 
-            const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), mat);
-            armR.position.set(0.4, 1.0, 0);
-            armR.castShadow = true;
-            group.add(armR);
+            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), redPlayerMat);
+            legL.position.set(-0.18, 0.35, 0); group.add(legL);
+            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), redPlayerMat);
+            legR.position.set(0.18, 0.35, 0); group.add(legR);
 
-            // Legs
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), mat);
-            legL.position.set(-0.18, 0.35, 0);
-            legL.castShadow = true;
-            group.add(legL);
-
-            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), mat);
-            legR.position.set(0.18, 0.35, 0);
-            legR.castShadow = true;
-            group.add(legR);
-
-            return group;
-        }
-
-        function createRemotePlayerMesh(pData) {
-            const group = createHumanoidMesh(pData.team);
-
+            // Name Tag & HP/Shield Bar
             const nameEl = document.createElement('div');
             nameEl.className = 'player-nameplate';
             nameEl.innerHTML = `
-                <div class="text-[10px] font-bold ${pData.team === 'red' ? 'text-red-400' : 'text-blue-400'} drop-shadow">${pData.name}</div>
-                <div class="w-12 bg-slate-900/90 h-1 rounded overflow-hidden border border-slate-700">
+                <div class="text-[10px] font-black text-red-400 drop-shadow">${name}</div>
+                <div class="w-14 bg-slate-950/90 h-1.5 rounded overflow-hidden border border-slate-700">
                     <div class="hp-bar bg-emerald-400 h-full w-full"></div>
                 </div>
             `;
             nametagContainer.appendChild(nameEl);
 
             group.userData = {
-                id: pData.id,
-                name: pData.name,
-                team: pData.team,
-                health: pData.health || 100,
-                shield: pData.shield || 100,
+                id: id,
+                name: name,
+                team: 'red',
+                health: 100,
+                shield: 50, // シールド（体力の半分）
                 nameEl: nameEl,
                 hpBarEl: nameEl.querySelector('.hp-bar'),
-                isBot: pData.isBot || false,
-                shootTimer: 0
+                shootTimer: 0,
+                moveDirection: new THREE.Vector3((Math.random() - 0.5), 0, (Math.random() - 0.5)).normalize()
             };
 
             scene.add(group);
-            remotePlayers.set(pData.id, group);
+            remotePlayers.set(id, group);
             return group;
-        }
-
-        function removeRemotePlayer(id) {
-            if (remotePlayers.has(id)) {
-                const group = remotePlayers.get(id);
-                scene.remove(group);
-                if (group.userData.nameEl) group.userData.nameEl.remove();
-                remotePlayers.delete(id);
-            }
         }
 
         // --- SHOOTING & BULLET TRACERS ---
@@ -626,15 +559,13 @@
             setTimeout(() => { muzzleLight.intensity = 0; }, 30);
 
             weaponGroup.position.z += 0.02;
-            pitch += 0.002;
+            pitch += 0.0015;
 
             const startPos = camera.position.clone().add(new THREE.Vector3(0.18, -0.15, -0.8).applyQuaternion(camera.quaternion));
 
             const targetMeshes = [];
             remotePlayers.forEach((pGroup) => {
-                if (pGroup.userData.team !== player.team) {
-                    pGroup.children.forEach(c => targetMeshes.push(c));
-                }
+                pGroup.children.forEach(c => targetMeshes.push(c));
             });
 
             for (let b = 0; b < currentWeapon.bullets; b++) {
@@ -650,40 +581,43 @@
                     hitPoint = intersects[0].point.clone();
                     const hitObj = intersects[0].object;
                     const targetGroup = hitObj.parent;
-                    const isHeadshot = hitPoint.y > targetGroup.position.y + 1.45;
-                    const damage = isHeadshot ? currentWeapon.headDamage : currentWeapon.damage;
+                    const isHead = hitPoint.y > targetGroup.position.y + 1.45;
+                    let damage = isHead ? currentWeapon.headDamage : currentWeapon.damage;
 
-                    spawnDamageNumber(hitPoint, damage, isHeadshot);
+                    // シールド削り処理
+                    let isShieldHit = false;
+                    if (targetGroup.userData.shield > 0) {
+                        isShieldHit = true;
+                        const absorb = Math.min(targetGroup.userData.shield, damage);
+                        targetGroup.userData.shield -= absorb;
+                        damage -= absorb * 0.7; // 硬いシールド（ダメージ軽減）
+                    }
+                    
+                    if (damage > 0) {
+                        targetGroup.userData.health -= damage;
+                    }
 
-                    targetGroup.userData.health -= damage;
+                    spawnDamageNumber(hitPoint, Math.round(isHead ? currentWeapon.headDamage : currentWeapon.damage), isHead, isShieldHit);
+
                     const hpPct = Math.max(0, (targetGroup.userData.health / 100) * 100);
                     targetGroup.userData.hpBarEl.style.width = `${hpPct}%`;
 
-                    if (roomId && db && currentUser && !targetGroup.userData.isBot) {
-                        const opponentRef = doc(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`, targetGroup.userData.id);
-                        updateDoc(opponentRef, { health: targetGroup.userData.health });
-                    }
-
                     if (targetGroup.userData.health <= 0) {
                         addKillLog(player.name, targetGroup.userData.name);
-                        if (player.team === 'blue') killsBlue++; else killsRed++;
+                        killsBlue++;
                         updateHUD();
-
-                        if (targetGroup.userData.isBot) {
-                            respawnBot(targetGroup);
-                        }
+                        respawnBot(targetGroup);
+                        checkVictoryCondition();
                     }
                 } else {
-                    hitPoint = camera.position.clone().addScaledVector(raycaster.ray.direction, 70);
+                    hitPoint = camera.position.clone().addScaledVector(raycaster.ray.direction, 80);
                 }
 
                 createBulletTracer(startPos, hitPoint);
             }
-
-            checkVictoryCondition();
         }
 
-        function spawnDamageNumber(pos, dmg, isHead) {
+        function spawnDamageNumber(pos, dmg, isHead, isShield) {
             const screenPos = pos.clone().project(camera);
             const x = (screenPos.x * .5 + .5) * window.innerWidth;
             const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
@@ -692,18 +626,21 @@
             el.className = 'damage-number';
             el.style.left = `${x}px`;
             el.style.top = `${y}px`;
-            el.style.color = isHead ? '#ef4444' : '#38bdf8';
+            el.style.color = isHead ? '#ef4444' : (isShield ? '#38bdf8' : '#f59e0b');
             el.innerText = dmg;
 
             document.body.appendChild(el);
-            setTimeout(() => el.remove(), 600);
+            setTimeout(() => el.remove(), 700);
         }
 
         function damageLocalPlayer(amount, attackerName = "Bot") {
+            if (!gameActive) return;
+
+            // 強化シールド（体力の半分の量、高い吸収率）
             if (player.shield > 0) {
                 const absorb = Math.min(player.shield, amount);
                 player.shield -= absorb;
-                amount -= absorb;
+                amount = (amount - absorb) * 0.5; // シールドでダメージ軽減
             }
             if (amount > 0) {
                 player.health -= amount;
@@ -712,34 +649,25 @@
             const flash = document.getElementById('hit-flash');
             if (flash) {
                 flash.style.opacity = '1';
-                setTimeout(() => flash.style.opacity = '0', 120);
+                setTimeout(() => flash.style.opacity = '0', 100);
             }
 
             updateHUD();
 
             if (player.health <= 0) {
                 addKillLog(attackerName, player.name);
-                if (player.team === 'blue') killsRed++; else killsBlue++;
+                killsRed++;
                 updateHUD();
-                respawnLocalPlayer();
-                checkVictoryCondition();
+                // 撃破されたら直ちにスコア表示してモード選択画面へ
+                endGame("GAME OVER", `SCORE: BLUE ${killsBlue} - ${killsRed} RED`);
             }
-        }
-
-        function respawnLocalPlayer() {
-            player.health = 100;
-            player.shield = 100;
-            player.ammo = player.maxAmmo;
-            const spawnZ = player.team === 'blue' ? 45 : -45;
-            player.position.set((Math.random() - 0.5) * 20, 1.7, spawnZ);
-            updateHUD();
         }
 
         function respawnBot(botGroup) {
             botGroup.userData.health = 100;
+            botGroup.userData.shield = 50;
             botGroup.userData.hpBarEl.style.width = '100%';
-            const spawnZ = botGroup.userData.team === 'blue' ? 45 : -45;
-            botGroup.position.set((Math.random() - 0.5) * 30, 0, spawnZ);
+            botGroup.position.set((Math.random() - 0.5) * 40, 0, -20 - Math.random() * 20);
         }
 
         function addKillLog(killer, victim) {
@@ -747,18 +675,18 @@
             if (!logEl) return;
 
             const item = document.createElement('div');
-            item.className = 'hud-panel px-2 py-1 rounded text-right font-bold';
-            item.innerHTML = `<span class="text-blue-400">${killer}</span> 💥 <span class="text-red-400">${victim}</span>`;
+            item.className = 'apex-panel px-3 py-1 rounded text-right font-black';
+            item.innerHTML = `<span class="text-sky-400">${killer}</span> 💥 <span class="text-red-400">${victim}</span>`;
             logEl.appendChild(item);
 
-            setTimeout(() => item.remove(), 4000);
+            setTimeout(() => item.remove(), 3500);
         }
 
         function updateHUD() {
             document.getElementById('health-bar').style.width = `${Math.max(0, player.health)}%`;
-            document.getElementById('shield-bar').style.width = `${Math.max(0, player.shield)}%`;
-            document.getElementById('health-val').innerText = `${Math.max(0, player.health)} / 100`;
-            document.getElementById('shield-val').innerText = `${Math.max(0, player.shield)} / 100`;
+            document.getElementById('shield-bar').style.width = `${Math.max(0, (player.shield / 100) * 100)}%`;
+            document.getElementById('health-val').innerText = `${Math.max(0, Math.round(player.health))} / 100`;
+            document.getElementById('shield-val').innerText = `${Math.max(0, Math.round(player.shield))} / 100`;
             document.getElementById('ammo-count').innerText = player.ammo;
             document.getElementById('ammo-max').innerText = `/ ${player.maxAmmo}`;
             document.getElementById('weapon-type-display').innerText = currentWeapon.name;
@@ -767,13 +695,13 @@
         }
 
         function checkVictoryCondition() {
-            if (killsBlue >= 10 || killsRed >= 10) {
-                const isBlueWin = killsBlue >= 10;
-                endGame(isBlueWin ? "BLUE TEAM WINS!" : "RED TEAM WINS!", `SCORE: BLUE ${killsBlue} - ${killsRed} RED`);
+            if (killsBlue >= 10) {
+                endGame("VICTORY!", `SCORE: BLUE ${killsBlue} - ${killsRed} RED`);
             }
         }
 
         function endGame(statusText, statsText) {
+            gameActive = false;
             document.exitPointerLock();
             document.getElementById('hud').classList.add('hidden');
             document.getElementById('start-overlay').classList.remove('hidden');
@@ -782,19 +710,11 @@
             banner.classList.remove('hidden');
             document.getElementById('result-status').innerText = statusText;
             document.getElementById('result-stats').innerText = statsText;
-
-            if (roomUnsubscribe) {
-                roomUnsubscribe();
-                roomUnsubscribe = null;
-            }
         }
 
-        // --- GAME START LOGIC ---
-        function startPracticeGame() {
-            roomId = null;
-            player.name = document.getElementById('input-player-name').value || 'Player1';
-            player.team = 'blue';
-
+        // --- GAME START ---
+        function startGame() {
+            player.name = document.getElementById('input-player-name').value || 'Legend1';
             const weaponKey = document.getElementById('select-weapon').value || 'ar';
             currentWeapon = WEAPONS[weaponKey];
             player.ammo = currentWeapon.ammo;
@@ -802,31 +722,37 @@
 
             botLevel = parseInt(document.getElementById('input-bot-level').value) || 5;
 
-            document.getElementById('player-team-badge').innerText = "BLUE TEAM";
-            document.getElementById('player-team-badge').className = "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30";
-            document.getElementById('room-code-display').innerText = `PRACTICE MATCH (BOT LV.${botLevel})`;
+            // Reset States
+            player.health = 100;
+            player.shield = 100;
+            killsBlue = 0;
+            killsRed = 0;
+            player.position.set(0, 5.7, 45); // 射撃場の高台からスタート
 
-            remotePlayers.forEach((_, id) => removeRemotePlayer(id));
-            killsBlue = 0; killsRed = 0;
+            remotePlayers.forEach((_, id) => {
+                const p = remotePlayers.get(id);
+                scene.remove(p);
+                if (p.userData.nameEl) p.userData.nameEl.remove();
+            });
+            remotePlayers.clear();
 
+            // Spawn 3 Bots
             for (let i = 1; i <= 3; i++) {
-                createRemotePlayerMesh({
-                    id: `bot_red_${i}`,
-                    name: `Bot_Red_${i}`,
-                    team: 'red',
-                    isBot: true,
-                    health: 100
-                });
+                const bot = createHumanoidBot(`bot_${i}`, `Target_Bot_${i}`);
+                respawnBot(bot);
             }
 
-            respawnLocalPlayer();
+            updateHUD();
+            gameActive = true;
+
+            // 選択後、スタート画面を即時非表示
             document.getElementById('start-overlay').classList.add('hidden');
             document.getElementById('hud').classList.remove('hidden');
             document.body.requestPointerLock();
         }
 
         const botLevelNames = {
-            1: "Very Easy", 2: "Easy", 3: "Beginner", 4: "Fair",
+            1: "Easy", 2: "Beginner", 3: "Fair", 4: "Medium",
             5: "Normal", 6: "Hard", 7: "Expert", 8: "Nightmare", 9: "Insane"
         };
         document.getElementById('input-bot-level')?.addEventListener('input', (e) => {
@@ -834,217 +760,130 @@
             document.getElementById('bot-level-display').innerText = `LV ${val}: ${botLevelNames[val]}`;
         });
 
-        async function joinOnlineRoom() {
-            if (!db || !currentUser) {
-                alert("オンライン接続を初期化中です。しばらく待ってから再試行してください。");
-                return;
-            }
-
-            const codeInput = document.getElementById('input-room-code').value.trim().toUpperCase();
-            if (!codeInput) {
-                alert("ルームコードを入力してください。");
-                return;
-            }
-
-            roomId = codeInput;
-            player.name = document.getElementById('input-player-name').value || 'Player1';
-            player.team = Math.random() > 0.5 ? 'blue' : 'red';
-
-            const teamBadge = document.getElementById('player-team-badge');
-            teamBadge.innerText = `${player.team.toUpperCase()} TEAM`;
-            teamBadge.className = player.team === 'blue' 
-                ? "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                : "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30";
-
-            document.getElementById('room-code-display').innerText = `ROOM: ${roomId}`;
-
-            const myPlayerRef = doc(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`, currentUser.uid);
-            await setDoc(myPlayerRef, {
-                id: currentUser.uid,
-                name: player.name,
-                team: player.team,
-                x: player.position.x,
-                y: player.position.y,
-                z: player.position.z,
-                yaw: yaw,
-                health: player.health,
-                updatedAt: Date.now()
-            });
-
-            const roomCol = collection(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`);
-            roomUnsubscribe = onSnapshot(roomCol, (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    const data = change.doc.data();
-                    if (data.id === currentUser.uid) return;
-
-                    if (change.type === "added" || change.type === "modified") {
-                        if (!remotePlayers.has(data.id)) {
-                            createRemotePlayerMesh(data);
-                        }
-                        const pGroup = remotePlayers.get(data.id);
-                        if (pGroup) {
-                            pGroup.position.set(data.x, data.y - 1.7, data.z);
-                            pGroup.rotation.y = data.yaw || 0;
-                            pGroup.userData.health = data.health;
-                            if (pGroup.userData.hpBarEl) {
-                                pGroup.userData.hpBarEl.style.width = `${Math.max(0, data.health)}%`;
-                            }
-                        }
-                    }
-                    if (change.type === "removed") {
-                        removeRemotePlayer(data.id);
-                    }
-                });
-            }, (err) => console.error(err));
-
-            respawnLocalPlayer();
-            document.getElementById('start-overlay').classList.add('hidden');
-            document.getElementById('hud').classList.remove('hidden');
-            document.body.requestPointerLock();
-        }
-
-        document.getElementById('btn-practice').addEventListener('click', startPracticeGame);
-        document.getElementById('btn-join-room').addEventListener('click', joinOnlineRoom);
+        document.getElementById('btn-practice').addEventListener('click', startGame);
 
         // --- MAIN GAME LOOP ---
         const clock = new THREE.Clock();
-        let lastSyncTime = 0;
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1);
 
-            const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-            euler.x = pitch; euler.y = yaw;
-            camera.quaternion.setFromEuler(euler);
+            if (gameActive) {
+                // Rotation
+                const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+                euler.x = pitch; euler.y = yaw;
+                camera.quaternion.setFromEuler(euler);
 
-            const targetFOV = player.isADS ? 45 : (player.isSliding ? 82 : 75);
-            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.2);
-            camera.updateProjectionMatrix();
-
-            // Weapon Fire Rate Handling
-            shootCooldown -= delta;
-            if ((isMouseDown || isEnterDown) && shootCooldown <= 0) {
-                fireWeapon();
-                shootCooldown = currentWeapon.fireRate;
-            }
-
-            // Weapon Kickback Recovery
-            weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0, 0.1);
-
-            // Movement & Sliding Logic
-            const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-            const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-            const nextPos = camera.position.clone();
-
-            let speed = player.baseSpeed;
-
-            if (player.isSliding) {
-                player.slideTimer += delta;
-                const progress = Math.min(1.0, player.slideTimer / player.slideDuration);
-                player.currentSlideSpeed = player.initialSlideSpeed * (1.0 - progress);
-
-                speed = player.currentSlideSpeed;
-                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.2);
-
-                if (speed > 0.001) {
-                    nextPos.addScaledVector(forward, speed);
+                // Auto Fire Handling
+                shootCooldown -= delta;
+                if (isMouseDown && shootCooldown <= 0) {
+                    fireWeapon();
+                    shootCooldown = currentWeapon.fireRate;
                 }
 
-                if (player.slideTimer >= player.slideDuration) {
-                    player.isSliding = false;
-                    player.currentSlideSpeed = 0;
-                }
-            } else {
-                player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.height, 0.2);
-                if (keys.w) nextPos.addScaledVector(forward, speed);
-                if (keys.s) nextPos.addScaledVector(forward, -speed);
-                if (keys.d) nextPos.addScaledVector(right, speed);
-                if (keys.a) nextPos.addScaledVector(right, -speed);
-            }
+                weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0, 0.15);
 
-            colliders.forEach(c => {
-                if (nextPos.x > c.minX && nextPos.x < c.maxX && nextPos.z > c.minZ && nextPos.z < c.maxZ) {
-                    if (camera.position.y > c.height + 0.5) {
-                        // On obstacle top
-                    } else {
-                        nextPos.x = camera.position.x;
-                        nextPos.z = camera.position.z;
+                // Movement & Sliding
+                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                const nextPos = camera.position.clone();
+
+                let speed = player.baseSpeed;
+
+                // 5秒間減速スライディング
+                if (player.isSliding) {
+                    player.slideTimer += delta;
+                    const progress = Math.min(1.0, player.slideTimer / player.slideMaxDuration);
+                    player.currentSlideSpeed = player.slideSpeed * (1.0 - progress);
+
+                    speed = player.currentSlideSpeed;
+                    player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.2);
+
+                    if (speed > 0.001) {
+                        nextPos.addScaledVector(forward, speed);
                     }
-                }
-            });
 
-            // Gravity
-            player.velocity.y -= 24.0 * delta;
-            nextPos.y += player.velocity.y * delta;
-
-            if (nextPos.y <= player.currentHeight) {
-                nextPos.y = player.currentHeight;
-                player.velocity.y = 0;
-                player.isGrounded = true;
-            }
-
-            camera.position.copy(nextPos);
-            player.position.copy(nextPos);
-
-            // Bot AI Behavior
-            remotePlayers.forEach((pGroup) => {
-                if (!pGroup.userData.isBot) return;
-
-                pGroup.lookAt(camera.position.x, pGroup.position.y, camera.position.z);
-
-                const moveSpeed = 1.8 + (botLevel * 0.4);
-                const attackInterval = Math.max(0.35, 2.2 - (botLevel * 0.2));
-                const hitAccuracy = 0.15 + (botLevel * 0.09);
-                const botDamage = Math.round(5 + (botLevel * 1.8));
-
-                const dir = new THREE.Vector3().subVectors(camera.position, pGroup.position).normalize();
-                const dist = pGroup.position.distanceTo(camera.position);
-
-                if (dist > (12 - botLevel * 0.6)) {
-                    pGroup.position.x += dir.x * moveSpeed * delta;
-                    pGroup.position.z += dir.z * moveSpeed * delta;
-                }
-
-                pGroup.userData.shootTimer = (pGroup.userData.shootTimer || 0) + delta;
-                if (pGroup.userData.shootTimer > attackInterval) {
-                    pGroup.userData.shootTimer = 0;
-                    if (dist < 45 && Math.random() < hitAccuracy) {
-                        createBulletTracer(pGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0)), camera.position);
-                        damageLocalPlayer(botDamage, pGroup.userData.name);
+                    if (player.slideTimer >= player.slideMaxDuration) {
+                        player.isSliding = false;
                     }
-                }
-            });
-
-            // Update Nameplates
-            remotePlayers.forEach((pGroup) => {
-                const headPos = pGroup.position.clone();
-                headPos.y += 1.8;
-                const screenPos = headPos.project(camera);
-
-                if (screenPos.z < 1) {
-                    const x = (screenPos.x * .5 + .5) * window.innerWidth;
-                    const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
-                    pGroup.userData.nameEl.style.left = `${x}px`;
-                    pGroup.userData.nameEl.style.top = `${y}px`;
-                    pGroup.userData.nameEl.style.display = 'flex';
                 } else {
-                    pGroup.userData.nameEl.style.display = 'none';
+                    player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.height, 0.2);
+                    if (keys.w) nextPos.addScaledVector(forward, speed);
+                    if (keys.s) nextPos.addScaledVector(forward, -speed);
+                    if (keys.d) nextPos.addScaledVector(right, speed);
+                    if (keys.a) nextPos.addScaledVector(right, -speed);
                 }
-            });
 
-            // Sync Local Position to Firestore
-            if (roomId && db && currentUser && Date.now() - lastSyncTime > 100) {
-                lastSyncTime = Date.now();
-                const myPlayerRef = doc(db, 'artifacts', appId, 'public', 'data', `pvp_${roomId}_players`, currentUser.uid);
-                updateDoc(myPlayerRef, {
-                    x: player.position.x,
-                    y: player.position.y,
-                    z: player.position.z,
-                    yaw: yaw,
-                    health: player.health,
-                    updatedAt: Date.now()
-                }).catch(() => {});
+                // Collisions & Ground Height
+                let currentGroundY = 0;
+                colliders.forEach(c => {
+                    if (nextPos.x > c.minX && nextPos.x < c.maxX && nextPos.z > c.minZ && nextPos.z < c.maxZ) {
+                        if (camera.position.y >= c.height + 0.2) {
+                            currentGroundY = Math.max(currentGroundY, c.height);
+                        } else {
+                            nextPos.x = camera.position.x;
+                            nextPos.z = camera.position.z;
+                        }
+                    }
+                });
+
+                // Gravity
+                player.velocity.y -= 22.0 * delta;
+                nextPos.y += player.velocity.y * delta;
+
+                if (nextPos.y <= currentGroundY + player.currentHeight) {
+                    nextPos.y = currentGroundY + player.currentHeight;
+                    player.velocity.y = 0;
+                    player.isGrounded = true;
+                }
+
+                camera.position.copy(nextPos);
+                player.position.copy(nextPos);
+
+                // Bot AI & Dynamic Movement
+                remotePlayers.forEach((pGroup) => {
+                    pGroup.lookAt(camera.position.x, pGroup.position.y, camera.position.z);
+
+                    const botMoveSpeed = 1.2 + (botLevel * 0.35);
+                    const hitProbability = 0.08 + (botLevel * 0.07); // 確率でエイム攻撃
+                    const botDamage = Math.round(2 + (botLevel * 1.2)); // 軽減されたダメージ
+
+                    // 敵のランダム移動・周回
+                    if (Math.random() < 0.02) {
+                        pGroup.userData.moveDirection.set((Math.random() - 0.5), 0, (Math.random() - 0.5)).normalize();
+                    }
+                    
+                    const dist = pGroup.position.distanceTo(camera.position);
+                    pGroup.position.addScaledVector(pGroup.userData.moveDirection, botMoveSpeed * delta);
+                    pGroup.position.x = THREE.MathUtils.clamp(pGroup.position.x, -45, 45);
+                    pGroup.position.z = THREE.MathUtils.clamp(pGroup.position.z, -60, 20);
+
+                    // 確率的射撃アルゴリズム
+                    pGroup.userData.shootTimer = (pGroup.userData.shootTimer || 0) + delta;
+                    if (pGroup.userData.shootTimer > Math.max(0.4, 2.0 - (botLevel * 0.15))) {
+                        pGroup.userData.shootTimer = 0;
+                        if (dist < 50 && Math.random() < hitProbability) {
+                            createBulletTracer(pGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0)), camera.position);
+                            damageLocalPlayer(botDamage, pGroup.userData.name);
+                        }
+                    }
+
+                    // Update Nameplates
+                    const headPos = pGroup.position.clone();
+                    headPos.y += 1.9;
+                    const screenPos = headPos.project(camera);
+
+                    if (screenPos.z < 1) {
+                        const x = (screenPos.x * .5 + .5) * window.innerWidth;
+                        const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
+                        pGroup.userData.nameEl.style.left = `${x}px`;
+                        pGroup.userData.nameEl.style.top = `${y}px`;
+                        pGroup.userData.nameEl.style.display = 'flex';
+                    } else {
+                        pGroup.userData.nameEl.style.display = 'none';
+                    }
+                });
             }
 
             renderer.render(scene, camera);
