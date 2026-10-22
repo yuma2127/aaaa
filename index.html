@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apex-Style 3D FPS Arena - Desert Wasteland</title>
+    <title>Apex-Style 3D FPS Arena - Combat & Athletics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -11,7 +11,7 @@
             margin: 0;
             overflow: hidden;
             user-select: none;
-            background-color: #c2410c;
+            background-color: #1e1b4b;
             font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
         }
         #crosshair {
@@ -52,7 +52,6 @@
             z-index: 0;
             display: block;
         }
-        /* Enemy Health / Shield World HUD Container */
         .enemy-hud {
             position: absolute;
             transform: translate(-50%, -100%);
@@ -62,11 +61,23 @@
             flex-direction: column;
             align-items: center;
             gap: 2px;
-            width: 64px;
+            width: 60px;
+        }
+        .hit-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            background: radial-gradient(circle, transparent 60%, rgba(239, 68, 68, 0.4) 100%);
+            opacity: 0;
+            transition: opacity 0.15s ease;
         }
     </style>
 </head>
-<body class="bg-amber-950 text-white overflow-hidden select-none">
+<body class="bg-slate-950 text-white overflow-hidden select-none">
+
+    <!-- Damage Screen Vignette Flash -->
+    <div id="hit-flash" class="hit-overlay"></div>
 
     <!-- Apex Crosshair & Mantle Prompt -->
     <div id="crosshair" class="flex flex-col items-center justify-center">
@@ -78,7 +89,7 @@
             <line x1="26" y1="18" x2="32" y2="18" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" />
         </svg>
 
-        <!-- Mantle Boost Ready HUD Prompt -->
+        <!-- Mantle Prompt -->
         <div id="mantle-prompt" class="hidden mt-3 flex flex-col items-center animate-bounce">
             <div class="px-2.5 py-0.5 bg-amber-500 text-slate-950 text-[10px] font-black rounded border border-yellow-300 shadow-lg">
                 [SPACE] MANTLE BOOST!
@@ -87,57 +98,49 @@
     </div>
 
     <!-- HUD Overlay Layer -->
-    <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-5">
+    <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-5 hidden">
         
         <!-- Top Apex Bar -->
         <div class="flex justify-between items-start">
-            <div class="apex-panel bg-amber-950/85 border-l-4 border-amber-400 px-4 py-2.5 rounded-r-lg shadow-2xl backdrop-blur-md">
+            <div class="apex-panel bg-slate-900/90 border-l-4 border-amber-400 px-4 py-2.5 rounded-r-lg shadow-2xl backdrop-blur-md">
                 <div class="apex-panel-inner">
-                    <h1 class="text-base font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
-                        APEX DESERT WASTELAND - R-99
+                    <h1 id="mode-title-text" class="text-base font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-400 to-red-400 bg-clip-text text-transparent">
+                        APEX COMBAT MODE
                     </h1>
                     <div class="text-[11px] text-amber-200 mt-0.5 space-y-0.5 font-semibold">
-                        <p><span class="text-amber-400">[W]前進維持</span>: 5歩連続移動でダッシュ発動 (離すと即リセット)</p>
-                        <p><span class="text-amber-400">[Shift] / [C]</span>: しゃがみ / 助走時は高速スライディング</p>
-                        <p><span class="text-amber-400">[Enter] / [左クリック]</span>: 射撃 | <span class="text-amber-400">[P] / [右クリック]</span>: 精密ADS | <span class="text-cyan-400">[Space]</span>: 壁登り・跳躍</p>
+                        <p><span class="text-amber-400">[W/↑]</span>: 前進助走 (5歩でスプリント発動)</p>
+                        <p><span class="text-amber-400">[Shift/C]</span>: しゃがみ/助走スライド | <span class="text-amber-400">[R]</span>: リロード</p>
+                        <p><span class="text-amber-400">[Enter/左クリック]</span>: 射撃 | <span class="text-amber-400">[P/右クリック]</span>: 精密ADS | <span class="text-cyan-400">[Space]</span>: 壁登り</p>
                     </div>
                 </div>
             </div>
 
+            <!-- Round / Athletic Stat Badge -->
             <div class="apex-panel bg-slate-900/90 border-r-4 border-amber-400 px-4 py-2 rounded-l-lg shadow-xl backdrop-blur-md">
                 <div class="apex-panel-inner text-right">
-                    <p class="text-[9px] text-amber-400 font-bold tracking-widest">KILLS / SCORE</p>
-                    <p id="score-text" class="text-xl font-black text-white">0</p>
+                    <p id="badge-label" class="text-[9px] text-amber-400 font-bold tracking-widest">ROUND 1 / 5</p>
+                    <p id="score-text" class="text-xl font-black text-white">ENEMIES LEFT: 0</p>
                 </div>
             </div>
         </div>
 
-        <!-- Micro Sprinting Gauge Bar & Action Notifications -->
+        <!-- Action Center Hint -->
         <div class="self-center flex flex-col items-center gap-1 mb-2">
             <div id="action-hint" class="text-amber-300 font-black text-lg tracking-widest uppercase opacity-0 transition-opacity duration-200 drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]">
                 SLIDING
             </div>
-            <!-- Ultra-compact Sprint Meter -->
-            <div class="flex items-center gap-1.5 bg-slate-950/80 px-2 py-0.5 rounded-full border border-amber-500/30">
-                <span class="text-[8px] font-black text-amber-400 tracking-wider">RUN</span>
-                <div class="w-16 bg-slate-900 h-1.5 rounded-full overflow-hidden border border-amber-500/30 p-0.5">
-                    <div id="sprint-bar" class="h-full bg-gradient-to-r from-amber-500 to-yellow-300 w-0 transition-all duration-75"></div>
-                </div>
-            </div>
         </div>
 
-        <!-- Bottom Apex Status Bar -->
+        <!-- Bottom Status Bar -->
         <div class="flex justify-between items-end">
             <!-- Health & Shield Bars -->
             <div class="w-72 space-y-1">
-                <!-- Shield Bar -->
                 <div class="flex items-center gap-2">
                     <span class="text-[9px] font-bold text-sky-400 w-10">SHIELD</span>
                     <div class="flex-1 bg-slate-950/80 h-2 rounded-sm p-0.5 border border-sky-500/30">
                         <div id="shield-bar" class="bg-gradient-to-r from-sky-400 to-cyan-300 h-full w-full rounded-sm transition-all duration-150"></div>
                     </div>
                 </div>
-                <!-- Health Bar -->
                 <div class="flex items-center gap-2">
                     <span class="text-[9px] font-bold text-emerald-400 w-10">HP</span>
                     <div class="flex-1 bg-slate-950/80 h-3 rounded-sm p-0.5 border border-emerald-500/30">
@@ -149,7 +152,7 @@
             <!-- Ammo Counter -->
             <div class="apex-panel bg-slate-900/90 border-r-4 border-amber-400 px-5 py-2.5 rounded-l-xl shadow-2xl backdrop-blur-md text-right">
                 <div class="apex-panel-inner">
-                    <p class="text-[9px] text-amber-400 font-bold tracking-widest">R-99 (1X HOLO)</p>
+                    <p class="text-[9px] text-amber-400 font-bold tracking-widest">SMG - TACTICAL</p>
                     <div class="flex items-baseline justify-end gap-1">
                         <span id="ammo-count" class="text-3xl font-black text-amber-400">27</span>
                         <span class="text-slate-500 font-bold text-sm">/ ∞</span>
@@ -159,58 +162,59 @@
         </div>
     </div>
 
-    <!-- Enemy Health Overlay Container -->
     <div id="enemy-huds-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
 
-    <!-- Start Overlay -->
-    <div id="start-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-lg flex flex-col items-center justify-center z-30">
-        <div class="bg-amber-950/90 border border-amber-500/30 p-7 rounded-2xl max-w-md w-full text-center shadow-[0_0_50px_rgba(245,158,11,0.2)] relative overflow-hidden">
+    <!-- Mode Selection & Start Screen Overlay -->
+    <div id="start-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-lg flex flex-col items-center justify-center z-30">
+        <div class="bg-slate-900/90 border border-amber-500/30 p-8 rounded-2xl max-w-lg w-full text-center shadow-[0_0_50px_rgba(245,158,11,0.25)] relative overflow-hidden">
             <div class="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-amber-400/50">
-                <svg class="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </div>
 
-            <h2 class="text-2xl font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-400 bg-clip-text text-transparent mb-1">
-                APEX WASTELAND ARENA
+            <h2 class="text-3xl font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-400 bg-clip-text text-transparent mb-1">
+                APEX ARENA SYSTEM
             </h2>
-            <p class="text-amber-400/80 text-[10px] font-bold tracking-widest uppercase mb-5">High-Mobility Wasteland Combat</p>
+            <p class="text-amber-400/80 text-[10px] font-bold tracking-widest uppercase mb-6">SELECT GAME MODE</p>
 
-            <div class="bg-slate-950/70 p-3.5 rounded-xl border border-amber-900/50 text-left text-xs text-slate-300 space-y-1.5 mb-5">
-                <div class="flex justify-between border-b border-slate-800 pb-1">
-                    <span class="text-amber-400">5歩連続前進助走</span>
-                    <span class="font-bold text-white">[W]キーを離すと歩数即リセット</span>
-                </div>
-                <div class="flex justify-between border-b border-slate-800 pb-1">
-                    <span class="text-amber-400">しゃがみ / スライド</span>
-                    <span class="font-bold text-white">[Shift] 通常しゃがみ / 助走中スライド</span>
-                </div>
-                <div class="flex justify-between border-b border-slate-800 pb-1">
-                    <span class="text-amber-400">ホロADS照準</span>
-                    <span class="font-bold text-white">[P]キー または [右クリック]</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-amber-400">射撃</span>
-                    <span class="font-bold text-white">[Enter]キー または [左クリック]</span>
-                </div>
+            <div class="space-y-3 mb-6">
+                <!-- Gunfight Mode Button -->
+                <button id="btn-mode-combat" class="w-full group bg-slate-800/80 hover:bg-amber-500 border border-amber-500/30 hover:border-amber-400 p-4 rounded-xl text-left transition-all duration-200">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-black text-lg text-white group-hover:text-slate-950 italic">撃ち合いモード (5 ROUNDS)</span>
+                        <span class="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 group-hover:bg-slate-950 group-hover:text-amber-400 rounded">COMBAT</span>
+                    </div>
+                    <p class="text-xs text-slate-400 group-hover:text-slate-900 font-semibold">
+                        1〜5ラウンド制の決闘。各ラウンド(1〜5体)の敵を撃破！敵も反撃射撃してきます。
+                    </p>
+                </button>
+
+                <!-- Athletic Mode Button -->
+                <button id="btn-mode-athletic" class="w-full group bg-slate-800/80 hover:bg-cyan-500 border border-cyan-500/30 hover:border-cyan-400 p-4 rounded-xl text-left transition-all duration-200">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-black text-lg text-white group-hover:text-slate-950 italic">アスレチックモード (PARKOUR)</span>
+                        <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 group-hover:bg-slate-950 group-hover:text-cyan-300 rounded">TRAINING</span>
+                    </div>
+                    <p class="text-xs text-slate-400 group-hover:text-slate-900 font-semibold">
+                        ジャンプ・壁登り・マントルブースト・スライディングを駆使して頂上ゴールを目指す！
+                    </p>
+                </button>
             </div>
 
-            <button id="start-btn" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black py-3.5 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-amber-500/30 uppercase tracking-widest text-xs">
-                ゲームを開始する
-            </button>
+            <!-- Game Results Banner (Hidden initially) -->
+            <div id="results-banner" class="hidden mb-4 p-4 bg-slate-950/80 border border-amber-400/50 rounded-xl">
+                <p id="result-status" class="text-xl font-black text-amber-400 italic">ROUND COMPLETE!</p>
+                <p id="result-stats" class="text-sm text-slate-300 font-bold mt-1">TOTAL SCORE: 0</p>
+            </div>
         </div>
     </div>
 
-    <!-- Main Game Logic -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Three.js Setup - Vibrant Desert Wasteland
+        // --- THREE.JS SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xc2410c); // Wasteland atmosphere
-        scene.fog = new THREE.FogExp2(0xc2410c, 0.005);
+        scene.background = new THREE.Color(0xd97706);
+        scene.fog = new THREE.FogExp2(0xd97706, 0.006);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -220,213 +224,169 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // Ambient Warm Sunlight
-        const ambientLight = new THREE.AmbientLight(0xffedd5, 1.1);
+        // Warm Sunlight
+        const ambientLight = new THREE.AmbientLight(0xffedd5, 1.2);
         scene.add(ambientLight);
 
-        const sunLight = new THREE.DirectionalLight(0xffedd5, 1.9);
-        sunLight.position.set(70, 100, 50);
+        const sunLight = new THREE.DirectionalLight(0xffedd5, 2.0);
+        sunLight.position.set(60, 90, 40);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 2048;
         sunLight.shadow.mapSize.height = 2048;
-        sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 300;
-        sunLight.shadow.camera.left = -110;
-        sunLight.shadow.camera.right = 110;
-        sunLight.shadow.camera.top = 110;
-        sunLight.shadow.camera.bottom = -110;
         scene.add(sunLight);
 
-        // Terrain Materials
-        const sandMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.95, metalness: 0.05 });
-        const rockMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.9, metalness: 0.1, flatShading: true });
-        const darkRockMat = new THREE.MeshStandardMaterial({ color: 0x713f12, roughness: 0.85, metalness: 0.2, flatShading: true });
-        const grassMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.8, side: THREE.DoubleSide });
+        // Materials
+        const sandMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.9 });
+        const rockMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9, flatShading: true });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.3 });
+        const platformMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3, metalness: 0.7 });
+        const goalMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, roughness: 0.2 });
 
-        // Irregular Ground with slight height variation
-        const groundGeo = new THREE.PlaneGeometry(300, 300, 64, 64);
-        const posAttr = groundGeo.attributes.position;
-        for (let i = 0; i < posAttr.count; i++) {
-            const vx = posAttr.getX(i);
-            const vy = posAttr.getY(i);
-            // Mild terrain noise
-            const z = Math.sin(vx * 0.05) * Math.cos(vy * 0.05) * 0.8 + Math.sin(vx * 0.1) * 0.4;
-            posAttr.setZ(i, z);
-        }
-        groundGeo.computeVertexNormals();
-
+        // Irregular Ground
+        const groundGeo = new THREE.PlaneGeometry(260, 260, 32, 32);
         const ground = new THREE.Mesh(groundGeo, sandMat);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         scene.add(ground);
 
-        const mapColliders = [];
+        // White Semi-Transparent Barrier Walls (Field Boundary)
+        const barrierMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+        const mapSize = 240;
+        const wallHeight = 35;
+        
+        const northWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
+        northWall.position.set(0, wallHeight / 2, -mapSize / 2);
+        scene.add(northWall);
 
-        // Function to create irregular, organic-shaped wasteland rocks/cliffs
-        function createIrregularRock(x, z, scaleX, scaleY, scaleZ) {
-            // Dodecahedron geometry distorted for rock shapes
-            const geo = new THREE.DodecahedronGeometry(1, 1);
-            const pos = geo.attributes.position;
-            
-            // Randomly deform vertices to create unique jagged rocks
-            for (let i = 0; i < pos.count; i++) {
-                const noise = 0.85 + Math.random() * 0.35;
-                pos.setXYZ(i, pos.getX(i) * noise, pos.getY(i) * noise, pos.getZ(i) * noise);
-            }
-            geo.computeVertexNormals();
+        const southWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
+        southWall.position.set(0, wallHeight / 2, mapSize / 2);
+        southWall.rotation.y = Math.PI;
+        scene.add(southWall);
 
-            const mat = (Math.random() > 0.4) ? rockMat : darkRockMat;
-            const mesh = new THREE.Mesh(geo, mat);
-            
-            mesh.scale.set(scaleX, scaleY, scaleZ);
-            mesh.position.set(x, scaleY * 0.7, z);
-            mesh.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.4);
+        const eastWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
+        eastWall.position.set(mapSize / 2, wallHeight / 2, 0);
+        eastWall.rotation.y = -Math.PI / 2;
+        scene.add(eastWall);
+
+        const westWall = new THREE.Mesh(new THREE.PlaneGeometry(mapSize, wallHeight), barrierMat);
+        westWall.position.set(-mapSize / 2, wallHeight / 2, 0);
+        westWall.rotation.y = Math.PI / 2;
+        scene.add(westWall);
+
+        // Colliders & Stage Objects
+        let mapColliders = [];
+        let stageObjects = [];
+
+        function clearStageObjects() {
+            stageObjects.forEach(obj => scene.remove(obj));
+            stageObjects = [];
+            mapColliders = [];
+        }
+
+        // Small Rock Generator with Small Hitboxes
+        function createSmallRock(x, z, size = 2) {
+            const geo = new THREE.DodecahedronGeometry(size, 0);
+            const mesh = new THREE.Mesh(geo, rockMat);
+            mesh.position.set(x, size * 0.6, z);
+            mesh.rotation.set(Math.random(), Math.random(), Math.random());
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
-
-            // Approximate bounding box for collision
-            const box = new THREE.Box3().setFromObject(mesh);
-            const size = new THREE.Vector3();
-            box.getSize(size);
+            stageObjects.push(mesh);
 
             mapColliders.push({
-                mesh: mesh,
-                box: box,
-                h: size.y,
-                x: x,
-                y: 0,
-                z: z,
-                w: size.x * 0.85,
-                d: size.z * 0.85
+                x, z, h: size * 1.2, w: size * 1.2, d: size * 1.2
             });
+        }
+
+        function createWallObstacle(x, z, w, h, d) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+            mesh.position.set(x, h / 2, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            stageObjects.push(mesh);
+
+            mapColliders.push({ x, z, h, w, d });
+        }
+
+        function createPlatform(x, y, z, w, h, d, isGoal = false) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), isGoal ? goalMat : platformMat);
+            mesh.position.set(x, y + h / 2, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            stageObjects.push(mesh);
+
+            mapColliders.push({ x, z, y, h: y + h, w, d, isPlatform: true });
             return mesh;
         }
 
-        // Spawn Irregular Rocks and Cliffs across the Map
-        for (let i = -120; i <= 120; i += 28) {
-            for (let j = -120; j <= 120; j += 28) {
-                if (Math.abs(i) < 20 && Math.abs(j) < 20) continue; // Keep center area open for combat
-                if (Math.random() > 0.35) {
-                    const sx = 4 + Math.random() * 8;
-                    const sy = 4 + Math.random() * 10;
-                    const sz = 4 + Math.random() * 8;
-                    createIrregularRock(i + (Math.random() * 8 - 4), j + (Math.random() * 8 - 4), sx, sy, sz);
-                }
-            }
-        }
-
-        // Center Obstacles for Vaulting / Climbing Practice
-        createIrregularRock(0, -12, 6, 4, 6);
-        createIrregularRock(-14, 12, 8, 5, 8);
-        createIrregularRock(14, 12, 7, 6, 7);
-
-        // Generate Non-collidable Grass Tufts
-        function generateGrassTufts() {
-            const grassGeo = new THREE.PlaneGeometry(1.2, 1.2);
-            grassGeo.translate(0, 0.6, 0);
-
-            const group = new THREE.Group();
-            for (let i = 0; i < 450; i++) {
-                const gx = (Math.random() - 0.5) * 260;
-                const gz = (Math.random() - 0.5) * 260;
-
-                const tuft = new THREE.Group();
-                for (let b = 0; b < 3; b++) {
-                    const blade = new THREE.Mesh(grassGeo, grassMat);
-                    blade.rotation.y = (b * Math.PI) / 3;
-                    tuft.add(blade);
-                }
-                tuft.position.set(gx, 0, gz);
-                tuft.scale.set(0.8 + Math.random() * 0.6, 0.7 + Math.random() * 0.8, 0.8 + Math.random() * 0.6);
-                tuft.rotation.y = Math.random() * Math.PI;
-                group.add(tuft);
-            }
-            scene.add(group);
-        }
-        generateGrassTufts();
-
-        // Weapon Construction (R-99 with Exact Scope Alignment Anchor)
+        // --- REALISTIC WEAPON & HAND MODEL (R-99 TACTICAL) ---
         const weaponGroup = new THREE.Group();
 
-        // Main Receiver
+        // Hands (Detailed arms)
+        const armMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8 }); // Arm skin/glove
+        const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45), armMat);
+        leftArm.rotation.set(Math.PI / 3, -0.2, -0.4);
+        leftArm.position.set(-0.15, -0.28, -0.38);
+        weaponGroup.add(leftArm);
+
+        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.45), armMat);
+        rightArm.rotation.set(Math.PI / 4, 0.1, 0.2);
+        rightArm.position.set(0.18, -0.28, -0.35);
+        weaponGroup.add(rightArm);
+
+        // Gun Receiver Body
         const r99Body = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.16, 0.65),
-            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 })
+            new THREE.BoxGeometry(0.08, 0.14, 0.55),
+            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.2, metalness: 0.8 })
         );
-        r99Body.position.set(0.2, -0.22, -0.45);
+        r99Body.position.set(0.16, -0.20, -0.45);
         weaponGroup.add(r99Body);
 
-        // Orange Trim Line
-        const r99Trim = new THREE.Mesh(
-            new THREE.BoxGeometry(0.105, 0.03, 0.4),
-            new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.2, metalness: 0.5 })
+        // Magazine (Animated during reload)
+        const r99Mag = new THREE.Mesh(
+            new THREE.BoxGeometry(0.05, 0.22, 0.07),
+            new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 })
         );
-        r99Trim.position.set(0.2, -0.16, -0.45);
-        weaponGroup.add(r99Trim);
+        r99Mag.rotation.x = -Math.PI / 8;
+        r99Mag.position.set(0.16, -0.30, -0.42);
+        weaponGroup.add(r99Mag);
 
         // Barrel & Shroud
         const r99Barrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.022, 0.022, 0.35),
+            new THREE.CylinderGeometry(0.02, 0.02, 0.35),
             new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.9 })
         );
         r99Barrel.rotation.x = Math.PI / 2;
-        r99Barrel.position.set(0.2, -0.18, -0.8);
+        r99Barrel.position.set(0.16, -0.16, -0.72);
         weaponGroup.add(r99Barrel);
 
-        // Extended Mag
-        const r99Mag = new THREE.Mesh(
-            new THREE.BoxGeometry(0.06, 0.22, 0.08),
-            new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7 })
-        );
-        r99Mag.rotation.x = -Math.PI / 8;
-        r99Mag.position.set(0.2, -0.32, -0.42);
-        weaponGroup.add(r99Mag);
-
-        // --- 1X HOLOGRAPHIC SCOPE ---
+        // Holo Sight Base & Lens Ring
         const scopeGroup = new THREE.Group();
-        
-        const scopeBase = new THREE.Mesh(
-            new THREE.BoxGeometry(0.08, 0.03, 0.16),
+        const scopeRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.042, 0.007, 8, 24),
             new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 })
         );
-        scopeBase.position.set(0.2, -0.12, -0.45);
-        scopeGroup.add(scopeBase);
-
-        const scopeRing = new THREE.Mesh(
-            new THREE.TorusGeometry(0.045, 0.008, 8, 24),
-            new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8 })
-        );
-        scopeRing.position.set(0.2, -0.06, -0.48);
+        scopeRing.position.set(0.16, -0.06, -0.48);
         scopeGroup.add(scopeRing);
 
-        // Holographic Glass Lens
-        const glassGeo = new THREE.RingGeometry(0.001, 0.038, 24);
-        const glassMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
-        const glass = new THREE.Mesh(glassGeo, glassMat);
-        glass.position.set(0.2, -0.06, -0.48);
-        scopeGroup.add(glass);
-
-        // Holographic Red Reticle Dot & Outer Ring
-        const holoMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.9 });
-        
-        const holoRing = new THREE.Mesh(new THREE.RingGeometry(0.008, 0.014, 16), holoMat);
-        holoRing.position.set(0.2, -0.06, -0.481);
-        scopeGroup.add(holoRing);
-
-        const holoCenterDot = new THREE.Mesh(new THREE.CircleGeometry(0.0035, 12), holoMat);
-        holoCenterDot.position.set(0.2, -0.06, -0.481);
-        scopeGroup.add(holoCenterDot);
+        // Holo Reticle Red Dot
+        const holoMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.95 });
+        const holoDot = new THREE.Mesh(new THREE.CircleGeometry(0.003, 12), holoMat);
+        holoDot.position.set(0.16, -0.06, -0.481);
+        scopeGroup.add(holoDot);
 
         weaponGroup.add(scopeGroup);
-
         camera.add(weaponGroup);
         scene.add(camera);
 
-        const muzzleLight = new THREE.PointLight(0xf59e0b, 0, 6);
-        muzzleLight.position.set(0.2, -0.18, -0.95);
+        const muzzleLight = new THREE.PointLight(0xf59e0b, 0, 5);
+        muzzleLight.position.set(0.16, -0.16, -0.85);
         camera.add(muzzleLight);
 
+        // --- PLAYER STATE ---
         const player = {
             height: 1.7,
             crouchHeight: 0.85,
@@ -435,7 +395,7 @@
             velocity: new THREE.Vector3(),
             baseSpeed: 0.14,
             sprintSpeed: 0.28,
-            slideSpeed: 0.44,
+            slideSpeed: 0.42,
             isGrounded: true,
             isCrouching: false,
             isSliding: false,
@@ -447,14 +407,20 @@
             ammo: 27,
             maxAmmo: 27,
             isReloading: false,
+            health: 100,
+            shield: 100,
             score: 0,
-            // 5-step run up tracking
             runDistance: 0,
             isSprinting: false,
             radius: 0.55
         };
 
         camera.position.copy(player.position);
+
+        let currentMode = null; // 'combat' or 'athletic'
+        let currentRound = 1;
+        let totalEnemiesInRound = 0;
+        let athleticGoalMesh = null;
 
         const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
         let yaw = 0;
@@ -463,6 +429,7 @@
         let isEnterDown = false;
         let shootCooldown = 0;
 
+        // Key Listeners
         window.addEventListener('keydown', (e) => {
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
@@ -470,15 +437,8 @@
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
             if (e.code === 'KeyR') reloadWeapon();
 
-            // Enterキーで射撃
-            if (e.code === 'Enter' || e.code === 'NumpadEnter') {
-                isEnterDown = true;
-            }
-
-            // Pキーでスコープ覗き(ADS)
-            if (e.code === 'KeyP') {
-                player.isADS = true;
-            }
+            if (e.code === 'Enter' || e.code === 'NumpadEnter') isEnterDown = true;
+            if (e.code === 'KeyP') player.isADS = true;
 
             if (e.code === 'Space') {
                 keys.space = true;
@@ -494,7 +454,6 @@
         window.addEventListener('keyup', (e) => {
             if (e.code === 'KeyW' || e.code === 'ArrowUp') {
                 keys.w = false;
-                // RESET RUN-UP IMMEDIATELY WHEN FORWARD INPUT STOPS
                 player.runDistance = 0;
                 player.isSprinting = false;
             }
@@ -502,16 +461,8 @@
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
 
-            // Enterキー離したとき
-            if (e.code === 'Enter' || e.code === 'NumpadEnter') {
-                isEnterDown = false;
-            }
-
-            // Pキー離したとき
-            if (e.code === 'KeyP') {
-                player.isADS = false;
-            }
-
+            if (e.code === 'Enter' || e.code === 'NumpadEnter') isEnterDown = false;
+            if (e.code === 'KeyP') player.isADS = false;
             if (e.code === 'Space') keys.space = false;
             if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') {
                 keys.shift = false;
@@ -522,28 +473,44 @@
         function handleCrouchOrSlide() {
             if (player.isGrounded) {
                 if (player.isSprinting) {
-                    // Start high-speed Apex slide if 5-step run up complete
                     player.isSliding = true;
                     player.slideTimer = 45;
                     showActionHint("SUPER SLIDE!");
                 } else {
-                    // Regular Crouch
                     player.isCrouching = true;
                     showActionHint("CROUCH");
                 }
             }
         }
 
+        // --- RELOAD WITH MOTION (1.3 SECONDS) ---
         function reloadWeapon() {
             if (player.isReloading || player.ammo === player.maxAmmo) return;
             player.isReloading = true;
             showActionHint("RELOADING...");
-            setTimeout(() => {
-                player.ammo = player.maxAmmo;
-                const ammoEl = document.getElementById('ammo-count');
-                if (ammoEl) ammoEl.innerText = player.ammo;
-                player.isReloading = false;
-            }, 1000);
+
+            // 1.3s Magazine drop & tilt animation
+            const startRot = weaponGroup.rotation.x;
+            const startMagY = r99Mag.position.y;
+
+            let elapsed = 0;
+            const reloadInterval = setInterval(() => {
+                elapsed += 0.05;
+                if (elapsed < 0.6) {
+                    weaponGroup.rotation.x = startRot + 0.35;
+                    r99Mag.position.y = startMagY - 0.12;
+                } else if (elapsed < 1.3) {
+                    weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, startRot, 0.2);
+                    r99Mag.position.y = THREE.MathUtils.lerp(r99Mag.position.y, startMagY, 0.3);
+                } else {
+                    clearInterval(reloadInterval);
+                    weaponGroup.rotation.x = startRot;
+                    r99Mag.position.y = startMagY;
+                    player.ammo = player.maxAmmo;
+                    updateHUD();
+                    player.isReloading = false;
+                }
+            }, 50);
         }
 
         function handleJumpOrClimbOrMantle() {
@@ -563,7 +530,7 @@
                 const raycaster = new THREE.Raycaster();
                 const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 raycaster.set(camera.position, forward);
-                const intersects = raycaster.intersectObjects(mapColliders.map(c => c.mesh));
+                const intersects = raycaster.intersectObjects(stageObjects);
 
                 if (intersects.length > 0 && intersects[0].distance < 1.4) {
                     player.velocity.y = 8.5;
@@ -609,23 +576,6 @@
         }
 
         // Pointer Lock & Controls
-        const startOverlay = document.getElementById('start-overlay');
-        const startBtn = document.getElementById('start-btn');
-
-        if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                document.body.requestPointerLock();
-            });
-        }
-
-        document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === document.body) {
-                if (startOverlay) startOverlay.classList.add('hidden');
-            } else {
-                if (startOverlay) startOverlay.classList.remove('hidden');
-            }
-        });
-
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement !== document.body) return;
             const sens = player.isADS ? 0.0012 : 0.0024;
@@ -647,85 +597,44 @@
 
         window.addEventListener('contextmenu', e => e.preventDefault());
 
-        // Humanoid 3D Enemy Models
+        // --- ENEMIES & HUDS ---
         const enemies = [];
         const hudsContainer = document.getElementById('enemy-huds-container');
 
-        const armorMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3, metalness: 0.6 });
-        const jointMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.8 });
-        const visorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        const armorMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 });
+        const jointMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
 
-        function createHumanoidEnemy(x, z) {
+        function createEnemyBot(x, z) {
             const botGroup = new THREE.Group();
 
-            // Pelvis / Lower Torso
-            const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.35), armorMat);
-            pelvis.position.y = 0.85;
-            pelvis.castShadow = true;
-            botGroup.add(pelvis);
-
-            // Chest / Upper Torso
-            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.4), armorMat);
-            chest.position.y = 1.25;
+            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.4), armorMat);
+            chest.position.y = 1.2;
             chest.castShadow = true;
             botGroup.add(chest);
 
-            // Head & Glowing Visor
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.32), jointMat);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), jointMat);
             head.position.y = 1.7;
             head.castShadow = true;
-
-            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.05), visorMat);
-            visor.position.set(0, 1.72, -0.15);
             botGroup.add(head);
-            botGroup.add(visor);
-
-            // Legs
-            const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), jointMat);
-            leftLeg.position.set(-0.16, 0.35, 0);
-            leftLeg.castShadow = true;
-            botGroup.add(leftLeg);
-
-            const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.7), jointMat);
-            rightLeg.position.set(0.16, 0.35, 0);
-            rightLeg.castShadow = true;
-            botGroup.add(rightLeg);
-
-            // Arms
-            const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), jointMat);
-            leftArm.position.set(-0.38, 1.2, 0);
-            leftArm.castShadow = true;
-            botGroup.add(leftArm);
-
-            const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.6), jointMat);
-            rightArm.position.set(0.38, 1.2, 0);
-            rightArm.castShadow = true;
-            botGroup.add(rightArm);
 
             botGroup.position.set(x, 0, z);
 
-            // Health & Shield HUD Element for this Enemy
             const hudEl = document.createElement('div');
             hudEl.className = 'enemy-hud';
             hudEl.innerHTML = `
                 <div class="w-full bg-slate-950/90 h-1.5 rounded-sm p-0.5 border border-sky-400/50">
-                    <div class="shield-inner bg-sky-400 h-full w-full rounded-sm transition-all duration-75"></div>
+                    <div class="shield-inner bg-sky-400 h-full w-full rounded-sm"></div>
                 </div>
                 <div class="w-full bg-slate-950/90 h-1.5 rounded-sm p-0.5 border border-emerald-400/50">
-                    <div class="hp-inner bg-emerald-400 h-full w-full rounded-sm transition-all duration-75"></div>
+                    <div class="hp-inner bg-emerald-400 h-full w-full rounded-sm"></div>
                 </div>
             `;
             hudsContainer.appendChild(hudEl);
 
             botGroup.userData = {
-                maxShield: 50,
-                shield: 50,
-                maxHealth: 100,
-                health: 100,
-                directionAngle: Math.random() * Math.PI * 2,
-                changeTimer: 0,
-                speed: 0.06 + Math.random() * 0.05,
-                radius: 0.6,
+                maxShield: 50, shield: 50,
+                maxHealth: 100, health: 100,
+                shootTimer: 0,
                 hudElement: hudEl,
                 shieldBar: hudEl.querySelector('.shield-inner'),
                 hpBar: hudEl.querySelector('.hp-inner')
@@ -735,17 +644,19 @@
             enemies.push(botGroup);
         }
 
-        // Spawn Humanoid Enemies
-        for (let i = 0; i < 12; i++) {
-            createHumanoidEnemy((Math.random() - 0.5) * 120, (Math.random() - 0.5) * 120);
+        function clearEnemies() {
+            enemies.forEach(b => {
+                scene.remove(b);
+                if (b.userData.hudElement) b.userData.hudElement.remove();
+            });
+            enemies.length = 0;
         }
 
-        function createBulletTracer(startPos, targetPos) {
+        // --- TRACERS & SHOOTING ---
+        function createBulletTracer(startPos, targetPos, isEnemy = false) {
             const material = new THREE.LineBasicMaterial({
-                color: 0xfef08a,
-                transparent: true,
-                opacity: 0.9,
-                linewidth: 2
+                color: isEnemy ? 0xef4444 : 0xfef08a,
+                transparent: true, opacity: 0.9, linewidth: 2
             });
             const geometry = new THREE.BufferGeometry().setFromPoints([startPos, targetPos]);
             const line = new THREE.Line(geometry, material);
@@ -774,27 +685,26 @@
             }
 
             player.ammo--;
-            const ammoEl = document.getElementById('ammo-count');
-            if (ammoEl) ammoEl.innerText = player.ammo;
+            updateHUD();
 
             muzzleLight.intensity = 4.0;
             setTimeout(() => { muzzleLight.intensity = 0; }, 30);
 
-            // Recoil
             weaponGroup.position.z += 0.025;
-            pitch += 0.004;
+            pitch += 0.003;
 
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            const muzzlePos = new THREE.Vector3();
-            muzzleLight.getWorldPosition(muzzlePos);
+            // Compute tracer start clean right below scope during ADS
+            const tracerStartPos = camera.position.clone();
+            const scopeOffset = player.isADS 
+                ? new THREE.Vector3(0, -0.08, -0.4).applyQuaternion(camera.quaternion)
+                : new THREE.Vector3(0.16, -0.16, -0.7).applyQuaternion(camera.quaternion);
+            tracerStartPos.add(scopeOffset);
 
-            // Collect enemy mesh parts for collision
             const enemyMeshes = [];
-            enemies.forEach(b => {
-                b.children.forEach(child => enemyMeshes.push(child));
-            });
+            enemies.forEach(b => b.children.forEach(child => enemyMeshes.push(child)));
 
             const intersects = raycaster.intersectObjects(enemyMeshes);
 
@@ -808,8 +718,6 @@
                 const damage = isHeadshot ? 22 : 14;
 
                 let remainingDamage = damage;
-                
-                // First deal damage to Apex Shield, then to HP
                 if (botGroup.userData.shield > 0) {
                     if (botGroup.userData.shield >= remainingDamage) {
                         botGroup.userData.shield -= remainingDamage;
@@ -824,38 +732,30 @@
                     botGroup.userData.health -= remainingDamage;
                 }
 
-                // Update Enemy Health HUD
                 const shieldPct = Math.max(0, (botGroup.userData.shield / botGroup.userData.maxShield) * 100);
                 const hpPct = Math.max(0, (botGroup.userData.health / botGroup.userData.maxHealth) * 100);
-                
                 botGroup.userData.shieldBar.style.width = `${shieldPct}%`;
                 botGroup.userData.hpBar.style.width = `${hpPct}%`;
 
-                // White hit flash effect
-                hitPart.material.color.setHex(0xffffff);
-                setTimeout(() => hitPart.material.color.setHex(0xef4444), 60);
-
                 spawnDamageNumber(intersects[0].point, damage, isHeadshot, botGroup.userData.shield > 0);
 
-                // Respawn enemy when dead
                 if (botGroup.userData.health <= 0) {
                     player.score += 150;
-                    const scoreEl = document.getElementById('score-text');
-                    if (scoreEl) scoreEl.innerText = player.score;
-                    
-                    botGroup.position.set((Math.random() - 0.5) * 130, 0, (Math.random() - 0.5) * 130);
-                    botGroup.userData.shield = botGroup.userData.maxShield;
-                    botGroup.userData.health = botGroup.userData.maxHealth;
-                    botGroup.userData.shieldBar.style.width = '100%';
-                    botGroup.userData.hpBar.style.width = '100%';
+                    scene.remove(botGroup);
+                    botGroup.userData.hudElement.remove();
+                    const idx = enemies.indexOf(botGroup);
+                    if (idx > -1) enemies.splice(idx, 1);
+
+                    checkRoundStatus();
                 }
             } else {
                 impactPoint = camera.position.clone().addScaledVector(raycaster.ray.direction, 80);
             }
 
-            createBulletTracer(muzzlePos, impactPoint);
+            createBulletTracer(tracerStartPos, impactPoint, false);
         }
 
+        // Damage Number Floating Text
         function spawnDamageNumber(worldPos, damage, isHeadshot, hitShield) {
             const screenPos = worldPos.clone().project(camera);
             const x = (screenPos.x * .5 + .5) * window.innerWidth;
@@ -875,7 +775,173 @@
             setTimeout(() => el.remove(), 700);
         }
 
+        // Player Takes Damage From Enemy Shots
+        function damagePlayer(amount) {
+            if (player.shield > 0) {
+                if (player.shield >= amount) {
+                    player.shield -= amount;
+                    amount = 0;
+                } else {
+                    amount -= player.shield;
+                    player.shield = 0;
+                }
+            }
+            if (amount > 0) {
+                player.health -= amount;
+            }
+
+            const flash = document.getElementById('hit-flash');
+            if (flash) {
+                flash.style.opacity = '1';
+                setTimeout(() => flash.style.opacity = '0', 150);
+            }
+
+            updateHUD();
+
+            if (player.health <= 0) {
+                endGame(false, "ELIMINATED IN COMBAT");
+            }
+        }
+
+        function updateHUD() {
+            const hpBar = document.getElementById('health-bar');
+            const shieldBar = document.getElementById('shield-bar');
+            const ammoCount = document.getElementById('ammo-count');
+            const scoreText = document.getElementById('score-text');
+
+            if (hpBar) hpBar.style.width = `${Math.max(0, player.health)}%`;
+            if (shieldBar) shieldBar.style.width = `${Math.max(0, player.shield)}%`;
+            if (ammoCount) ammoCount.innerText = player.ammo;
+
+            if (currentMode === 'combat') {
+                if (scoreText) scoreText.innerText = `ENEMIES LEFT: ${enemies.length}`;
+            }
+        }
+
+        // --- GAME MODES MANAGEMENT ---
+        function startCombatMode() {
+            currentMode = 'combat';
+            currentRound = 1;
+            player.score = 0;
+            resetPlayerStatus();
+
+            clearStageObjects();
+            // Create Arena obstacles & cover rocks
+            for (let i = -8; i <= 8; i += 4) {
+                createWallObstacle(i * 5, -15, 4, 3.5, 1.5);
+                createWallObstacle(i * 5, 15, 4, 3.5, 1.5);
+            }
+            for (let i = 0; i < 8; i++) {
+                createSmallRock((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 2);
+            }
+
+            setupRound(1);
+            showHUD(true);
+            document.body.requestPointerLock();
+        }
+
+        function setupRound(round) {
+            clearEnemies();
+            currentRound = round;
+            
+            // Random enemies count from 1 to 5 per round
+            const enemyCount = Math.floor(Math.random() * 5) + 1;
+            totalEnemiesInRound = enemyCount;
+
+            document.getElementById('badge-label').innerText = `ROUND ${currentRound} / 5`;
+            
+            for (let i = 0; i < enemyCount; i++) {
+                createEnemyBot((Math.random() - 0.5) * 60, -20 - (Math.random() * 40));
+            }
+
+            updateHUD();
+            showActionHint(`ROUND ${currentRound} START!`);
+        }
+
+        function checkRoundStatus() {
+            if (currentMode === 'combat' && enemies.length === 0) {
+                if (currentRound < 5) {
+                    showActionHint(`ROUND ${currentRound} CLEARED!`);
+                    setTimeout(() => setupRound(currentRound + 1), 1500);
+                } else {
+                    endGame(true, "VICTORY! ALL 5 ROUNDS CLEARED");
+                }
+            } else {
+                updateHUD();
+            }
+        }
+
+        function startAthleticMode() {
+            currentMode = 'athletic';
+            resetPlayerStatus();
+
+            clearStageObjects();
+            clearEnemies();
+
+            document.getElementById('mode-title-text').innerText = "APEX ATHLETIC PARKOUR";
+            document.getElementById('badge-label').innerText = "PARKOUR TRAINING";
+            document.getElementById('score-text').innerText = "REACH THE GOAL";
+
+            // Create Parkour Athletic Course
+            let currentZ = 20;
+            let currentY = 0;
+
+            for (let i = 0; i < 12; i++) {
+                currentZ -= 12;
+                currentY += 2.5;
+                const x = (Math.sin(i) * 10);
+                createPlatform(x, currentY, currentZ, 5, 1, 5);
+            }
+
+            // Final Goal Platform
+            athleticGoalMesh = createPlatform(0, currentY + 4, currentZ - 18, 8, 1, 8, true);
+
+            showHUD(true);
+            document.body.requestPointerLock();
+        }
+
+        function resetPlayerStatus() {
+            player.health = 100;
+            player.shield = 100;
+            player.ammo = player.maxAmmo;
+            player.position.set(0, 1.7, 30);
+            player.velocity.set(0, 0, 0);
+            updateHUD();
+        }
+
+        function showHUD(show) {
+            const hud = document.getElementById('hud');
+            if (hud) hud.classList.toggle('hidden', !show);
+        }
+
+        function endGame(isWin, statusText) {
+            document.exitPointerLock();
+            showHUD(false);
+
+            const overlay = document.getElementById('start-overlay');
+            const banner = document.getElementById('results-banner');
+            const statusEl = document.getElementById('result-status');
+            const statsEl = document.getElementById('result-stats');
+
+            if (overlay) overlay.classList.remove('hidden');
+            if (banner) banner.classList.remove('hidden');
+
+            if (statusEl) statusEl.innerText = statusText;
+            if (statsEl) statsEl.innerText = `FINAL SCORE: ${player.score}`;
+        }
+
+        // Mode Selection Button Handlers
+        document.getElementById('btn-mode-combat').addEventListener('click', startCombatMode);
+        document.getElementById('btn-mode-athletic').addEventListener('click', startAthleticMode);
+
+        // --- COLLISION DETECTOR (Barrier & Rocks) ---
         function checkCollisions(newPos) {
+            // White Outer Boundary Wall Collision
+            const halfSize = mapSize / 2 - 1.5;
+            newPos.x = Math.max(-halfSize, Math.min(halfSize, newPos.x));
+            newPos.z = Math.max(-halfSize, Math.min(halfSize, newPos.z));
+
+            // Stage Obstacle Collision
             for (const col of mapColliders) {
                 const minX = col.x - col.w / 2 - player.radius;
                 const maxX = col.x + col.w / 2 + player.radius;
@@ -883,7 +949,13 @@
                 const maxZ = col.z + col.d / 2 + player.radius;
 
                 if (newPos.x > minX && newPos.x < maxX && newPos.z > minZ && newPos.z < maxZ) {
-                    if (newPos.y < col.h) {
+                    if (col.isPlatform) {
+                        if (player.velocity.y <= 0 && newPos.y <= col.h + player.height) {
+                            newPos.y = col.h + player.height;
+                            player.velocity.y = 0;
+                            player.isGrounded = true;
+                        }
+                    } else if (newPos.y < col.h) {
                         const dxMin = Math.abs(newPos.x - minX);
                         const dxMax = Math.abs(newPos.x - maxX);
                         const dzMin = Math.abs(newPos.z - minZ);
@@ -897,56 +969,42 @@
                     }
                 }
             }
-
-            enemies.forEach(bot => {
-                const distSq = (newPos.x - bot.position.x) ** 2 + (newPos.z - bot.position.z) ** 2;
-                const minDist = player.radius + bot.userData.radius;
-                if (distSq < minDist * minDist) {
-                    const dist = Math.sqrt(distSq);
-                    const overlap = minDist - dist;
-                    const angle = Math.atan2(newPos.z - bot.position.z, newPos.x - bot.position.x);
-                    newPos.x += Math.cos(angle) * overlap;
-                    newPos.z += Math.sin(angle) * overlap;
-                }
-            });
         }
 
         const clock = new THREE.Clock();
 
+        // --- MAIN LOOP ---
         function animate() {
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1);
 
-            // Camera Quaternion
             const euler = new THREE.Euler(0, 0, 0, 'YXZ');
             euler.x = pitch;
             euler.y = yaw;
             camera.quaternion.setFromEuler(euler);
 
-            // FOV Transition
-            const targetFOV = player.isADS ? 40 : (player.isSliding ? 84 : 75);
+            // ADS FOV & Gun Pos
+            const targetFOV = player.isADS ? 42 : (player.isSliding ? 82 : 75);
             camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.25);
             camera.updateProjectionMatrix();
 
-            // EXACT SCOPE & RETICLE ALIGNMENT TO CENTER OF SCREEN
-            // -0.2 (x), 0.06 (y) precisely offsets scope model so holo red dot lands on screen crosshair
+            // Perfect Holo Sight Center Alignment on ADS
             const targetGunPos = player.isADS 
-                ? new THREE.Vector3(-0.2, 0.06, -0.48)
-                : new THREE.Vector3(0.2, -0.22, -0.45);
-            weaponGroup.position.lerp(targetGunPos, 0.32);
+                ? new THREE.Vector3(-0.16, 0.06, -0.48)
+                : new THREE.Vector3(0.16, -0.20, -0.45);
+            weaponGroup.position.lerp(targetGunPos, 0.35);
 
-            // Hide HUD crosshair SVG during ADS
             const crosshairSvg = document.getElementById('crosshair-svg');
             if (crosshairSvg) crosshairSvg.style.opacity = player.isADS ? '0' : '1';
 
-            // Auto Firing
+            // Weapon Firing Cooldown
             shootCooldown -= delta;
             if ((isMouseDown || isEnterDown) && shootCooldown <= 0) {
                 fireWeapon();
-                shootCooldown = 0.055;
+                shootCooldown = 0.065;
             }
 
-            // Mantle Boost Timer
+            // Mantle Boost Window
             if (player.isMantleReady) {
                 player.mantleTimer--;
                 if (player.mantleTimer <= 0) {
@@ -955,33 +1013,20 @@
                 }
             }
 
-            // Direction Vectors
             const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const nextPos = camera.position.clone();
 
-            // --- 5-STEP RUN-UP SPRINT MECHANIC ---
-            // Requirement: W key MUST be held continuously. Releasing W resets steps instantly.
-            // ONLY allow run-up sprint if player is moving forward, grounded, NOT crouching, and NOT sliding
+            // SPRINT RUN-UP (Disallowed while crouching)
             if (keys.w && player.isGrounded && !player.isCrouching && !player.isSliding) {
-                player.runDistance += delta * 14; // Requires ~5 steps of forward running
-                if (player.runDistance >= 15) {
-                    player.isSprinting = true;
-                }
+                player.runDistance += delta * 14;
+                if (player.runDistance >= 15) player.isSprinting = true;
             } else if (!keys.w || player.isCrouching) {
-                // Instantly reset if forward movement stops or player is crouching!
                 player.runDistance = 0;
                 player.isSprinting = false;
             }
 
-            // Update Ultra-Compact Sprint Meter
-            const sprintBar = document.getElementById('sprint-bar');
-            if (sprintBar) {
-                const pct = Math.min(100, (player.runDistance / 15) * 100);
-                sprintBar.style.width = `${pct}%`;
-            }
-
-            // Movement logic & crouching/sliding
+            // Movement & Sliding
             const moveDir = new THREE.Vector3();
             if (keys.w) moveDir.add(forward);
             if (keys.s) moveDir.sub(forward);
@@ -989,19 +1034,14 @@
             if (keys.a) moveDir.sub(right);
 
             let currentSpeed = player.baseSpeed;
-            if (player.isSliding) {
-                currentSpeed = player.slideSpeed;
-            } else if (player.isSprinting) {
-                currentSpeed = player.sprintSpeed;
-            } else if (player.isCrouching) {
-                currentSpeed = player.baseSpeed * 0.5;
-            }
+            if (player.isSliding) currentSpeed = player.slideSpeed;
+            else if (player.isSprinting) currentSpeed = player.sprintSpeed;
+            else if (player.isCrouching) currentSpeed = player.baseSpeed * 0.5;
 
             if (player.isSliding) {
                 player.slideTimer--;
                 player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.crouchHeight, 0.25);
                 nextPos.addScaledVector(forward, currentSpeed);
-
                 if (player.slideTimer <= 0) player.isSliding = false;
             } else {
                 const targetH = player.isCrouching ? player.crouchHeight : player.height;
@@ -1013,7 +1053,7 @@
                 }
             }
 
-            // Gravity Physics
+            // Gravity
             if (!player.isGrounded) {
                 player.velocity.y -= 26.0 * delta;
                 nextPos.y += player.velocity.y * delta;
@@ -1031,39 +1071,45 @@
             checkCollisions(nextPos);
             camera.position.copy(nextPos);
 
-            // Update Enemies AI & Head Overlay Position
-            enemies.forEach((bot) => {
-                const data = bot.userData;
-                data.changeTimer -= delta;
-
-                if (data.changeTimer <= 0) {
-                    data.directionAngle = Math.random() * Math.PI * 2;
-                    data.changeTimer = 1.2 + Math.random() * 2.0;
+            // Athletic Goal Collision Check
+            if (currentMode === 'athletic' && athleticGoalMesh) {
+                const distToGoal = camera.position.distanceTo(athleticGoalMesh.position);
+                if (distToGoal < 4) {
+                    endGame(true, "PARKOUR ATHLETIC CLEAR!");
                 }
+            }
 
-                bot.rotation.y = THREE.MathUtils.lerp(bot.rotation.y, data.directionAngle, 0.08);
-                const botForward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), bot.rotation.y);
-                
-                const nextBotPos = bot.position.clone().addScaledVector(botForward, data.speed);
-                if (Math.abs(nextBotPos.x) < 125 && Math.abs(nextBotPos.z) < 125) {
-                    bot.position.copy(nextBotPos);
-                }
+            // Enemy AI Shooting Logic (Combat Mode)
+            if (currentMode === 'combat') {
+                enemies.forEach(bot => {
+                    bot.lookAt(camera.position.x, bot.position.y, camera.position.z);
+                    
+                    bot.userData.shootTimer = (bot.userData.shootTimer || 0) + delta;
+                    if (bot.userData.shootTimer > 1.2) {
+                        bot.userData.shootTimer = 0;
 
-                // Project 3D enemy top head position to screen space for HP/Shield HUD
-                const headPos = bot.position.clone();
-                headPos.y += 2.1;
-                
-                const screenPos = headPos.project(camera);
-                if (screenPos.z < 1) { // Visible in front of camera
-                    const x = (screenPos.x * .5 + .5) * window.innerWidth;
-                    const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
-                    data.hudElement.style.left = `${x}px`;
-                    data.hudElement.style.top = `${y}px`;
-                    data.hudElement.style.display = 'flex';
-                } else {
-                    data.hudElement.style.display = 'none';
-                }
-            });
+                        // Bot shoots at player
+                        const botMuzzle = bot.position.clone();
+                        botMuzzle.y += 1.2;
+                        createBulletTracer(botMuzzle, camera.position, true);
+                        damagePlayer(8);
+                    }
+
+                    // Update Enemy HUD Screen Position
+                    const headPos = bot.position.clone();
+                    headPos.y += 2.1;
+                    const screenPos = headPos.project(camera);
+                    if (screenPos.z < 1) {
+                        const x = (screenPos.x * .5 + .5) * window.innerWidth;
+                        const y = (-(screenPos.y * .5) + .5) * window.innerHeight;
+                        bot.userData.hudElement.style.left = `${x}px`;
+                        bot.userData.hudElement.style.top = `${y}px`;
+                        bot.userData.hudElement.style.display = 'flex';
+                    } else {
+                        bot.userData.hudElement.style.display = 'none';
+                    }
+                });
+            }
 
             renderer.render(scene, camera);
         }
@@ -1074,7 +1120,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Start Loop
+        // Start render loop
         animate();
     </script>
 </body>
