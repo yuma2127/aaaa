@@ -106,15 +106,6 @@
         </svg>
     </div>
 
-    <!-- スコープ覗き込み用スコープ枠 (ADS) -->
-    <div id="ads-scope-ui" class="ads-overlay">
-        <div class="w-72 h-72 rounded-full border-2 border-sky-400/60 flex items-center justify-center relative bg-sky-950/10 backdrop-blur-[1px]">
-            <div class="absolute w-full h-[1px] bg-sky-400/50"></div>
-            <div class="absolute h-full w-[1px] bg-sky-400/50"></div>
-            <div class="w-3 h-3 rounded-full border border-amber-400/80 bg-amber-400/30"></div>
-        </div>
-    </div>
-
     <!-- HUD (ゲーム画面オーバーレイ) -->
     <div id="hud" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-6 hidden">
         
@@ -127,9 +118,10 @@
                     <div id="player-team-badge" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-400 border border-blue-400/40 inline-block">
                         BLUE TEAM
                     </div>
-                    <div id="room-code-display" class="text-xs text-slate-300 font-black mt-1">TACTICAL ARENA (BOT MATCH)</div>
+                    <div id="round-display" class="text-xs text-amber-400 font-black mt-1">ROUND 1 / 3</div>
+                    <div id="speed-display" class="text-[10px] text-sky-400 font-bold">STATE: WALKING (WALK 0/3)</div>
                     <div class="text-[10px] text-slate-300 mt-1 font-medium">
-                        [W/A/S/D] 移動 | [P] スコープを覗く (ADS) | [Shift/C] スライディング | [Space] ジャンプ | [R] リロード
+                        [W/A/S/D] 移動 (W維持で助走/スプリント) | [P] ADS(武器スコープ覗き込み) | [Shift/C] スライディング | [Space] ジャンプ | [R] リロード
                     </div>
                 </div>
             </div>
@@ -138,13 +130,13 @@
             <div class="apex-panel px-8 py-2 rounded-xl border-t-2 border-t-amber-400">
                 <div class="apex-panel-inner flex items-center gap-6">
                     <div class="text-center">
-                        <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest">BLUE TEAM</p>
+                        <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest">KILLS</p>
                         <p id="score-blue" class="text-3xl font-black text-blue-400">0</p>
                     </div>
-                    <div class="text-amber-400 font-black text-xl italic">VS</div>
+                    <div class="text-amber-400 font-black text-xl italic">/</div>
                     <div class="text-center">
-                        <p class="text-[10px] font-black text-red-400 uppercase tracking-widest">RED TEAM</p>
-                        <p id="score-red" class="text-3xl font-black text-red-400">0</p>
+                        <p class="text-[10px] font-black text-red-400 uppercase tracking-widest">TOTAL BOTS</p>
+                        <p id="score-red" class="text-3xl font-black text-red-400">15</p>
                     </div>
                 </div>
             </div>
@@ -248,12 +240,21 @@
             </div>
 
             <!-- ボットレベル設定 (1~9) -->
-            <div class="mb-6 text-left">
+            <div class="mb-3 text-left">
                 <div class="flex justify-between items-center mb-1">
                     <label class="text-[11px] font-black text-slate-400 tracking-wider">BOT DIFFICULTY (LEVEL 1-9)</label>
                     <span id="bot-level-display" class="text-xs font-black text-amber-400">LV 5: Normal</span>
                 </div>
                 <input id="input-bot-level" type="range" min="1" max="9" value="5" class="w-full accent-amber-400 cursor-pointer" />
+            </div>
+
+            <!-- BOT総数設定 (15~25) -->
+            <div class="mb-6 text-left">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[11px] font-black text-amber-400 tracking-wider">TOTAL BOTS (15-25体 / 3ラウンド)</label>
+                    <span id="bot-count-display" class="text-xs font-black text-amber-400">15 BOTS</span>
+                </div>
+                <input id="input-bot-count" type="range" min="15" max="25" value="15" class="w-full accent-amber-400 cursor-pointer" />
             </div>
 
             <!-- スタートボタン -->
@@ -289,9 +290,11 @@
         dirLight.shadow.mapSize.height = 2048;
         scene.add(dirLight);
 
-        // --- MAP BUILDER (TACTICAL COVER & OBSTACLES AREA) ---
-        const colliders = [];
-        const coverObstacles = []; // 銃弾を遮る衝突オブジェクト群
+        // --- MAP BUILDER (RANDOM PROCEDURAL OBSTACLES) ---
+        let colliders = [];
+        let coverObstacles = [];
+        let randomObstacleGroup = new THREE.Group();
+        scene.add(randomObstacleGroup);
 
         // Materials
         const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.2 });
@@ -307,12 +310,12 @@
         ground.receiveShadow = true;
         scene.add(ground);
 
-        function addBoxObstacle(x, y, z, w, h, d, mat = wallMat) {
+        function addBoxObstacle(x, y, z, w, h, d, mat = wallMat, parent = scene) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             mesh.position.set(x, y + h / 2, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            scene.add(mesh);
+            parent.add(mesh);
 
             coverObstacles.push(mesh);
 
@@ -325,57 +328,57 @@
             return mesh;
         }
 
-        // --- 遮蔽物・障害物の大量配置 (的看板は完全消去) ---
-        // 高台プラットフォーム
-        addBoxObstacle(0, 0, 45, 80, 4, 25, highFloorMat);
-        addBoxObstacle(-25, 0, 15, 14, 2, 25, highFloorMat);
-        addBoxObstacle(25, 0, 15, 14, 2, 25, highFloorMat);
+        function generateRandomMap() {
+            // クリーンアップ
+            coverObstacles = [];
+            colliders = [];
+            while(randomObstacleGroup.children.length > 0) {
+                randomObstacleGroup.remove(randomObstacleGroup.children[0]);
+            }
 
-        // 外周の壁
-        addBoxObstacle(0, 0, -80, 160, 10, 4, wallMat);
-        addBoxObstacle(-80, 0, 0, 4, 10, 160, wallMat);
-        addBoxObstacle(80, 0, 0, 4, 10, 160, wallMat);
+            // 外周の固定境界壁
+            addBoxObstacle(0, 0, -80, 160, 10, 4, wallMat, randomObstacleGroup);
+            addBoxObstacle(-80, 0, 0, 4, 10, 160, wallMat, randomObstacleGroup);
+            addBoxObstacle(80, 0, 0, 4, 10, 160, wallMat, randomObstacleGroup);
+            addBoxObstacle(0, 0, 80, 160, 10, 4, wallMat, randomObstacleGroup);
 
-        // コンテナとタクティカル壁（銃撃戦を誘発する配置）
-        addBoxObstacle(0, 0, 15, 8, 3.5, 4, containerMat);
-        addBoxObstacle(-15, 0, -5, 6, 3.5, 14, containerMat);
-        addBoxObstacle(15, 0, -5, 6, 3.5, 14, containerMat);
+            // ランダム構造物の生成（プレイヤー初期位置 0, 45 周辺を除外）
+            const mats = [wallMat, containerMat, crateMat, pillarMat, highFloorMat];
+            const numObstacles = 30 + Math.floor(Math.random() * 15);
 
-        // 中央戦場の身隠し壁 & 物陰ブロック
-        addBoxObstacle(-30, 0, -25, 16, 4, 3, wallMat);
-        addBoxObstacle(30, 0, -25, 16, 4, 3, wallMat);
-        addBoxObstacle(0, 0, -35, 12, 4.5, 4, wallMat);
-        addBoxObstacle(-10, 0, -48, 8, 3, 8, crateMat);
-        addBoxObstacle(10, 0, -48, 8, 3, 8, crateMat);
+            for (let i = 0; i < numObstacles; i++) {
+                let rx = (Math.random() - 0.5) * 120;
+                let rz = (Math.random() - 0.5) * 120;
+                
+                // プレイヤーの初期スポーン地点付近には障害物を置かない
+                if (Math.abs(rx) < 15 && Math.abs(rz - 45) < 15) continue;
 
-        // 柱・追加カバーポイント
-        addBoxObstacle(-45, 0, -10, 4, 6, 4, pillarMat);
-        addBoxObstacle(45, 0, -10, 4, 6, 4, pillarMat);
-        addBoxObstacle(-20, 0, -60, 10, 3.5, 4, crateMat);
-        addBoxObstacle(20, 0, -60, 10, 3.5, 4, crateMat);
-        addBoxObstacle(0, 0, -68, 14, 5, 4, wallMat);
+                let rw = 3 + Math.random() * 12;
+                let rh = 2.5 + Math.random() * 6;
+                let rd = 3 + Math.random() * 12;
+                let rMat = mats[Math.floor(Math.random() * mats.length)];
 
-        // 小型の物陰ボックス群
-        addBoxObstacle(-5, 4, 40, 3, 1.5, 3, crateMat); // 高台上のカバー
-        addBoxObstacle(5, 4, 40, 3, 1.5, 3, crateMat);
+                addBoxObstacle(rx, 0, rz, rw, rh, rd, rMat, randomObstacleGroup);
+            }
+        }
 
         // --- WEAPON CONFIGURATIONS ---
         const WEAPONS = {
             ar: { 
                 name: "ASSAULT RIFLE", ammo: 30, damage: 20, headDamage: 36, fireRate: 0.11, bullets: 1, spread: 0.012, color: 0x38bdf8,
-                hipPos: new THREE.Vector3(0.2, -0.22, -0.5), adsPos: new THREE.Vector3(0, -0.128, -0.38)
+                hipPos: new THREE.Vector3(0.2, -0.22, -0.5), adsPos: new THREE.Vector3(0, -0.108, -0.28)
             },
             smg: { 
                 name: "SUBMACHINE GUN", ammo: 35, damage: 13, headDamage: 24, fireRate: 0.065, bullets: 1, spread: 0.025, color: 0xa855f7,
-                hipPos: new THREE.Vector3(0.16, -0.18, -0.38), adsPos: new THREE.Vector3(0, -0.108, -0.30)
+                hipPos: new THREE.Vector3(0.16, -0.18, -0.38), adsPos: new THREE.Vector3(0, -0.098, -0.22)
             },
             shotgun: { 
                 name: "SHOTGUN", ammo: 8, damage: 11, headDamage: 18, fireRate: 0.65, bullets: 8, spread: 0.07, color: 0xf97316,
-                hipPos: new THREE.Vector3(0.22, -0.24, -0.55), adsPos: new THREE.Vector3(0, -0.138, -0.42)
+                hipPos: new THREE.Vector3(0.22, -0.24, -0.55), adsPos: new THREE.Vector3(0, -0.118, -0.32)
             },
             sniper: { 
                 name: "SNIPER RIFLE", ammo: 5, damage: 90, headDamage: 175, fireRate: 1.1, bullets: 1, spread: 0.001, color: 0xef4444,
-                hipPos: new THREE.Vector3(0.24, -0.25, -0.7), adsPos: new THREE.Vector3(0, -0.148, -0.48)
+                hipPos: new THREE.Vector3(0.24, -0.25, -0.7), adsPos: new THREE.Vector3(0, -0.128, -0.35)
             }
         };
 
@@ -403,7 +406,6 @@
             let muzzleZ = -0.7;
 
             if (type === 'smg') {
-                // サブマシンガン：コンパクトなボディと短いバレル
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.35), bodyMat);
                 body.position.set(0, 0, -0.2);
                 weaponGroup.add(body);
@@ -420,7 +422,6 @@
                 muzzleZ = -0.55;
 
             } else if (type === 'ar') {
-                // アサルトライフル：標準的サイズ
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.5), bodyMat);
                 body.position.set(0, 0, -0.3);
                 weaponGroup.add(body);
@@ -438,7 +439,6 @@
                 muzzleZ = -0.88;
 
             } else if (type === 'shotgun') {
-                // ショットガン：太い重厚ボディとダブルバレル感
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.13, 0.55), bodyMat);
                 body.position.set(0, 0, -0.32);
                 weaponGroup.add(body);
@@ -455,7 +455,6 @@
                 muzzleZ = -0.98;
 
             } else if (type === 'sniper') {
-                // スナイパーライフル：長大バレルと巨大なボディ
                 const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.15, 0.7), bodyMat);
                 body.position.set(0, 0, -0.4);
                 weaponGroup.add(body);
@@ -472,7 +471,7 @@
                 muzzleZ = -1.38;
             }
 
-            // --- 全武器共通：選択されたスコープの取り付け ---
+            // --- 武器マウントスコープ（覗き込み時にカメラ中心へジャスト合わせ） ---
             const scopeGroup = new THREE.Group();
             const mount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.08), scopeMat);
             mount.position.set(0, 0.07, -0.28);
@@ -489,9 +488,19 @@
             lens.position.set(0, 0.108, -0.28 + scopeTubeLen / 2 + 0.001);
             scopeGroup.add(lens);
 
+            // レティクル十字線（レンズ内部）
+            const reticleMat = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
+            const reticleGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-scopeRadius * 0.7, 0, 0), new THREE.Vector3(scopeRadius * 0.7, 0, 0),
+                new THREE.Vector3(0, -scopeRadius * 0.7, 0), new THREE.Vector3(0, scopeRadius * 0.7, 0)
+            ]);
+            const reticleLines = new THREE.LineSegments(reticleGeo, reticleMat);
+            reticleLines.position.set(0, 0.108, -0.28 + scopeTubeLen / 2 + 0.002);
+            scopeGroup.add(reticleLines);
+
             weaponGroup.add(scopeGroup);
 
-            // 銃口の先端位置アンカーを設定（弾が正しくここから出る）
+            // 銃口の先端位置アンカーを設定
             muzzleTipObject = new THREE.Object3D();
             muzzleTipObject.position.set(0, 0.03, muzzleZ);
             weaponGroup.add(muzzleTipObject);
@@ -513,9 +522,10 @@
             height: 1.7,
             crouchHeight: 0.9,
             currentHeight: 1.7,
-            position: new THREE.Vector3(0, 5.7, 50),
+            position: new THREE.Vector3(0, 1.7, 45),
             velocity: new THREE.Vector3(),
-            baseSpeed: 0.16,
+            walkSpeed: 0.11,
+            sprintSpeed: 0.22,
             slideSpeed: 0.42,
             currentSlideSpeed: 0,
             isGrounded: true,
@@ -526,11 +536,16 @@
             shield: 100,
             ammo: 30,
             maxAmmo: 30,
-            isReloading: false
+            isReloading: false,
+            // 助走・スプリントシステム
+            walkSteps: 0,
+            stepDistanceCounter: 0,
+            isSprinting: false
         };
 
-        let killsBlue = 0;
-        let killsRed = 0;
+        let totalBots = 15;
+        let currentRound = 1;
+        let killsTotal = 0;
         let botLevel = 5;
         let gameActive = false;
 
@@ -567,7 +582,8 @@
                 player.isSliding = false;
             }
 
-            if ((e.code === 'ShiftLeft' || e.code === 'KeyC') && player.isGrounded && keys.w && !player.isSliding) {
+            // スライディングは助走後（スプリント状態）でのみ可能
+            if ((e.code === 'ShiftLeft' || e.code === 'KeyC') && player.isGrounded && keys.w && player.isSprinting && !player.isSliding) {
                 player.isSliding = true;
                 player.slideTimer = 0;
                 player.currentSlideSpeed = player.slideSpeed;
@@ -575,7 +591,12 @@
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = false;
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') {
+                keys.w = false;
+                player.walkSteps = 0;
+                player.stepDistanceCounter = 0;
+                player.isSprinting = false;
+            }
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
@@ -592,7 +613,7 @@
 
         window.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === document.body) {
-                const sens = isADS ? 0.0012 : 0.0022; // ADS時は感度を少し下げる
+                const sens = isADS ? 0.0012 : 0.0022;
                 yaw -= e.movementX * sens;
                 pitch -= e.movementY * sens;
                 pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
@@ -601,16 +622,8 @@
 
         function toggleADS() {
             isADS = !isADS;
-            const scopeUI = document.getElementById('ads-scope-ui');
             const crosshair = document.getElementById('crosshair');
-
-            if (isADS) {
-                scopeUI.style.opacity = '1';
-                crosshair.style.opacity = '0';
-            } else {
-                scopeUI.style.opacity = '0';
-                crosshair.style.opacity = '1';
-            }
+            crosshair.style.opacity = isADS ? '0' : '1';
         }
 
         function reloadWeapon() {
@@ -626,7 +639,7 @@
             }, 1200);
         }
 
-        // --- HUMANOID BOTS ---
+        // --- HUMANOID BOTS (WITH SHIELDS) ---
         const remotePlayers = new Map();
         const nametagContainer = document.getElementById('nametag-container');
         const redPlayerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4, metalness: 0.3 });
@@ -664,7 +677,7 @@
             nametagContainer.appendChild(nameEl);
 
             group.userData = {
-                id: id, name: name, team: 'red', health: 100, shield: 50,
+                id: id, name: name, team: 'red', health: 100, shield: 100,
                 nameEl: nameEl, hpBarEl: nameEl.querySelector('.hp-bar'), shootTimer: 0,
                 moveDirection: new THREE.Vector3((Math.random() - 0.5), 0, (Math.random() - 0.5)).normalize()
             };
@@ -705,9 +718,8 @@
             setTimeout(() => { muzzleLight.intensity = 0; }, 30);
 
             weaponGroup.position.z += 0.03;
-            pitch += isADS ? 0.0008 : 0.0018; // ADS時はリコイル抑制
+            pitch += isADS ? 0.0008 : 0.0018;
 
-            // 正確に銃の先端（muzzleTipObject）から発射
             const muzzleWorldPos = new THREE.Vector3();
             muzzleTipObject.getWorldPosition(muzzleWorldPos);
 
@@ -716,7 +728,6 @@
                 pGroup.children.forEach(c => targetEnemyMeshes.push(c));
             });
 
-            // 敵および障壁（壁・コンテナ）両方を判定対象に組み込む
             const raycastTargets = [...targetEnemyMeshes, ...coverObstacles];
 
             for (let b = 0; b < currentWeapon.bullets; b++) {
@@ -734,9 +745,8 @@
                     const hitObj = intersects[0].object;
                     hitPoint = intersects[0].point.clone();
 
-                    // 障壁ではなく敵に命中したか確認（壁・障害物は弾を通さない）
                     if (coverObstacles.includes(hitObj)) {
-                        // 弾丸が壁に当たって停止
+                        // 障壁に命中
                     } else if (hitObj.parent && hitObj.parent.userData && hitObj.parent.userData.team === 'red') {
                         const targetGroup = hitObj.parent;
                         const isHead = hitPoint.y > targetGroup.position.y + 1.45;
@@ -759,19 +769,28 @@
                         const hpPct = Math.max(0, (targetGroup.userData.health / 100) * 100);
                         targetGroup.userData.hpBarEl.style.width = `${hpPct}%`;
 
+                        // 敵撃破時の処理
                         if (targetGroup.userData.health <= 0) {
                             addKillLog(player.name, targetGroup.userData.name);
-                            killsBlue++;
+                            killsTotal++;
+
+                            // 撃破時ヘルス/シールド回復（キルリカバリー）
+                            player.health = Math.min(100, player.health + 35);
+                            player.shield = Math.min(100, player.shield + 25);
+
+                            // ボット消去
+                            if (targetGroup.userData.nameEl) targetGroup.userData.nameEl.remove();
+                            scene.remove(targetGroup);
+                            remotePlayers.delete(targetGroup.userData.id);
+
                             updateHUD();
-                            respawnBot(targetGroup);
-                            checkVictoryCondition();
+                            checkRoundProgress();
                         }
                     }
                 } else {
                     hitPoint = camera.position.clone().addScaledVector(raycaster.ray.direction, 90);
                 }
 
-                // 銃口先端から着弾点へトレーサー生成
                 createBulletTracer(muzzleWorldPos, hitPoint);
             }
         }
@@ -814,20 +833,35 @@
 
             if (player.health <= 0) {
                 addKillLog(attackerName, player.name);
-                killsRed++;
                 updateHUD();
-                endGame("GAME OVER", `SCORE: BLUE ${killsBlue} - ${killsRed} RED`);
+                endGame("GAME OVER", `KILLS: ${killsTotal} / ${totalBots}`);
             }
         }
 
-        function respawnBot(botGroup) {
-            botGroup.userData.health = 100;
-            botGroup.userData.shield = 50;
-            botGroup.userData.hpBarEl.style.width = '100%';
-            // 障害物の陰にリスポーン
-            const spawnX = (Math.random() - 0.5) * 50;
-            const spawnZ = -20 - Math.random() * 45;
-            botGroup.position.set(spawnX, 0, spawnZ);
+        function spawnRoundBots() {
+            // 残りの総ボットから1ラウンド分計算（3ラウンド構成）
+            const roundTargetCount = Math.min(5, Math.ceil(totalBots / 3));
+            for (let i = 1; i <= roundTargetCount; i++) {
+                const botId = `bot_r${currentRound}_${i}_${Math.random()}`;
+                const bot = createHumanoidBot(botId, `Enemy_Bot_${killsTotal + i}`);
+                bot.userData.health = 100;
+                bot.userData.shield = 100;
+                const spawnX = (Math.random() - 0.5) * 60;
+                const spawnZ = -10 - Math.random() * 50;
+                bot.position.set(spawnX, 0, spawnZ);
+            }
+        }
+
+        function checkRoundProgress() {
+            if (remotePlayers.size === 0) {
+                if (killsTotal >= totalBots || currentRound >= 3) {
+                    endGame("VICTORY!", `ALL BOTS ELIMINATED! TOTAL KILLS: ${killsTotal}`);
+                } else {
+                    currentRound++;
+                    spawnRoundBots();
+                    updateHUD();
+                }
+            }
         }
 
         function addKillLog(killer, victim) {
@@ -851,20 +885,20 @@
             document.getElementById('ammo-max').innerText = `/ ${player.maxAmmo}`;
             document.getElementById('weapon-type-display').innerText = currentWeapon.name;
             document.getElementById('scope-type-display').innerText = `${selectedScopeZoom.toFixed(1)}x Scope Attached`;
-            document.getElementById('score-blue').innerText = killsBlue;
-            document.getElementById('score-red').innerText = killsRed;
-        }
+            document.getElementById('score-blue').innerText = killsTotal;
+            document.getElementById('score-red').innerText = totalBots;
+            document.getElementById('round-display').innerText = `ROUND ${currentRound} / 3`;
 
-        function checkVictoryCondition() {
-            if (killsBlue >= 10) {
-                endGame("VICTORY!", `SCORE: BLUE ${killsBlue} - ${killsRed} RED`);
-            }
+            let stateStr = "WALKING";
+            if (player.isSliding) stateStr = "SLIDING";
+            else if (player.isSprinting) stateStr = "SPRINTING";
+            else stateStr = `WALKING (STEP ${player.walkSteps}/3)`;
+            document.getElementById('speed-display').innerText = `STATE: ${stateStr}`;
         }
 
         function endGame(statusText, statsText) {
             gameActive = false;
             isADS = false;
-            document.getElementById('ads-scope-ui').style.opacity = '0';
             document.getElementById('crosshair').style.opacity = '1';
             document.exitPointerLock();
             document.getElementById('hud').classList.add('hidden');
@@ -886,28 +920,30 @@
 
             selectedScopeZoom = parseFloat(document.getElementById('select-scope').value) || 1.0;
             botLevel = parseInt(document.getElementById('input-bot-level').value) || 5;
+            totalBots = parseInt(document.getElementById('input-bot-count').value) || 15;
+
+            // ランダムマップ再生成
+            generateRandomMap();
 
             // 武器メッシュとスコープの動的再構築
             buildWeaponMesh(weaponKey, selectedScopeZoom);
 
             player.health = 100;
             player.shield = 100;
-            killsBlue = 0;
-            killsRed = 0;
-            player.position.set(0, 5.7, 45);
+            killsTotal = 0;
+            currentRound = 1;
+            player.walkSteps = 0;
+            player.stepDistanceCounter = 0;
+            player.isSprinting = false;
+            player.position.set(0, 1.7, 45);
 
-            remotePlayers.forEach((_, id) => {
-                const p = remotePlayers.get(id);
+            remotePlayers.forEach((p) => {
                 scene.remove(p);
                 if (p.userData.nameEl) p.userData.nameEl.remove();
             });
             remotePlayers.clear();
 
-            for (let i = 1; i <= 3; i++) {
-                const bot = createHumanoidBot(`bot_${i}`, `Target_Bot_${i}`);
-                respawnBot(bot);
-            }
-
+            spawnRoundBots();
             updateHUD();
             gameActive = true;
 
@@ -925,6 +961,11 @@
             document.getElementById('bot-level-display').innerText = `LV ${val}: ${botLevelNames[val]}`;
         });
 
+        document.getElementById('input-bot-count')?.addEventListener('input', (e) => {
+            const val = e.target.value;
+            document.getElementById('bot-count-display').innerText = `${val} BOTS`;
+        });
+
         document.getElementById('btn-practice').addEventListener('click', startGame);
 
         // --- MAIN GAME LOOP ---
@@ -940,13 +981,13 @@
                 euler.x = pitch; euler.y = yaw;
                 camera.quaternion.setFromEuler(euler);
 
-                // ADS Smooth Transition & FOV Zoom
+                // ADS Smooth Transition & Scope Alignment
                 const targetFOV = isADS ? (75 / selectedScopeZoom) : 75;
                 camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.2);
                 camera.updateProjectionMatrix();
 
                 const targetWeaponPos = isADS ? currentWeapon.adsPos : currentWeapon.hipPos;
-                weaponGroup.position.lerp(targetWeaponPos, 0.2);
+                weaponGroup.position.lerp(targetWeaponPos, 0.25);
 
                 // Auto Fire Handling
                 shootCooldown -= delta;
@@ -957,12 +998,12 @@
 
                 weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, targetWeaponPos.z, 0.15);
 
-                // Movement & Sliding
+                // Movement & Speed Acceleration (3-Step Sprint Logic)
                 const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 const nextPos = camera.position.clone();
 
-                let speed = player.baseSpeed;
+                let speed = player.walkSpeed;
 
                 if (player.isSliding) {
                     player.slideTimer += delta;
@@ -981,10 +1022,27 @@
                     }
                 } else {
                     player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.height, 0.2);
-                    if (keys.w) nextPos.addScaledVector(forward, speed);
-                    if (keys.s) nextPos.addScaledVector(forward, -speed);
-                    if (keys.d) nextPos.addScaledVector(right, speed);
-                    if (keys.a) nextPos.addScaledVector(right, -speed);
+                    
+                    // Wキー移動時の助走計測（3歩あるいてからスプリントへ移行）
+                    if (keys.w) {
+                        if (!player.isSprinting) {
+                            player.stepDistanceCounter += player.walkSpeed;
+                            if (player.stepDistanceCounter >= 1.2) { // 1歩分の移動距離
+                                player.stepDistanceCounter = 0;
+                                player.walkSteps++;
+                                updateHUD();
+                                if (player.walkSteps >= 3) {
+                                    player.isSprinting = true;
+                                }
+                            }
+                        }
+                        speed = player.isSprinting ? player.sprintSpeed : player.walkSpeed;
+                        nextPos.addScaledVector(forward, speed);
+                    }
+
+                    if (keys.s) nextPos.addScaledVector(forward, -player.walkSpeed);
+                    if (keys.d) nextPos.addScaledVector(right, player.walkSpeed);
+                    if (keys.a) nextPos.addScaledVector(right, -player.walkSpeed);
                 }
 
                 // Collisions & Ground Height
@@ -1027,10 +1085,10 @@
                     
                     const dist = pGroup.position.distanceTo(camera.position);
                     pGroup.position.addScaledVector(pGroup.userData.moveDirection, botMoveSpeed * delta);
-                    pGroup.position.x = THREE.MathUtils.clamp(pGroup.position.x, -70, 70);
-                    pGroup.position.z = THREE.MathUtils.clamp(pGroup.position.z, -70, 20);
+                    pGroup.position.x = THREE.MathUtils.clamp(pGroup.position.x, -75, 75);
+                    pGroup.position.z = THREE.MathUtils.clamp(pGroup.position.z, -75, 75);
 
-                    // 敵ボットの射撃判定（射線に壁・障害物があるかチェック）
+                    // 敵ボットの射撃判定
                     pGroup.userData.shootTimer = (pGroup.userData.shootTimer || 0) + delta;
                     if (pGroup.userData.shootTimer > Math.max(0.4, 2.0 - (botLevel * 0.15))) {
                         pGroup.userData.shootTimer = 0;
@@ -1038,11 +1096,9 @@
                             const botEyePos = pGroup.position.clone().add(new THREE.Vector3(0, 1.4, 0));
                             const dirToPlayer = camera.position.clone().sub(botEyePos).normalize();
                             
-                            // 壁越し射撃を防ぐレイキャスト
                             const botRay = new THREE.Raycaster(botEyePos, dirToPlayer, 0, dist);
                             const wallHits = botRay.intersectObjects(coverObstacles);
 
-                            // 途中に壁がない場合のみプレイヤーに命中でダメージ
                             if (wallHits.length === 0) {
                                 createBulletTracer(botEyePos, camera.position);
                                 damageLocalPlayer(botDamage, pGroup.userData.name);
