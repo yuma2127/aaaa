@@ -165,48 +165,60 @@
     <div id="enemy-huds-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
 
     <!-- Mode Selection & Start Screen Overlay -->
-    <div id="start-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-lg flex flex-col items-center justify-center z-30">
-        <div class="bg-slate-900/90 border border-amber-500/30 p-8 rounded-2xl max-w-lg w-full text-center shadow-[0_0_50px_rgba(245,158,11,0.25)] relative overflow-hidden">
-            <div class="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-amber-400/50">
-                <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div id="start-overlay" class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-center z-30 transition-all duration-300">
+        <div class="bg-slate-900/80 border border-amber-500/40 p-6 md:p-8 rounded-2xl max-w-lg w-[90%] text-center shadow-[0_0_50px_rgba(245,158,11,0.25)] relative overflow-hidden backdrop-blur-md">
+            
+            <!-- Quick Lock & Play Button for Instant Screen View -->
+            <button id="btn-quick-preview" class="absolute top-3 right-3 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg text-xs font-bold transition flex items-center gap-1 border border-slate-600/50">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                画面プレビュー
+            </button>
+
+            <div class="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-2 border border-amber-400/50">
+                <svg class="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </div>
 
-            <h2 class="text-3xl font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-400 bg-clip-text text-transparent mb-1">
+            <h2 class="text-2xl md:text-3xl font-black italic tracking-wider bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-400 bg-clip-text text-transparent mb-0.5">
                 APEX ARENA SYSTEM
             </h2>
-            <p class="text-amber-400/80 text-[10px] font-bold tracking-widest uppercase mb-6">SELECT GAME MODE</p>
+            <p class="text-amber-400/80 text-[10px] font-bold tracking-widest uppercase mb-4">SELECT GAME MODE TO PLAY</p>
 
-            <div class="space-y-3 mb-6">
+            <div class="space-y-3 mb-4">
                 <!-- Gunfight Mode Button -->
-                <button id="btn-mode-combat" class="w-full group bg-slate-800/80 hover:bg-amber-500 border border-amber-500/30 hover:border-amber-400 p-4 rounded-xl text-left transition-all duration-200">
+                <button id="btn-mode-combat" class="w-full group bg-slate-800/80 hover:bg-amber-500 border border-amber-500/30 hover:border-amber-400 p-3.5 rounded-xl text-left transition-all duration-200">
                     <div class="flex justify-between items-center mb-1">
-                        <span class="font-black text-lg text-white group-hover:text-slate-950 italic">撃ち合いモード (5 ROUNDS)</span>
+                        <span class="font-black text-base md:text-lg text-white group-hover:text-slate-950 italic">撃ち合いモード (5 ROUNDS)</span>
                         <span class="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 group-hover:bg-slate-950 group-hover:text-amber-400 rounded">COMBAT</span>
                     </div>
-                    <p class="text-xs text-slate-400 group-hover:text-slate-900 font-semibold">
+                    <p class="text-xs text-slate-300 group-hover:text-slate-900 font-semibold">
                         1〜5ラウンド制の決闘。各ラウンド(1〜5体)の敵を撃破！敵も反撃射撃してきます。
                     </p>
                 </button>
 
                 <!-- Athletic Mode Button -->
-                <button id="btn-mode-athletic" class="w-full group bg-slate-800/80 hover:bg-cyan-500 border border-cyan-500/30 hover:border-cyan-400 p-4 rounded-xl text-left transition-all duration-200">
+                <button id="btn-mode-athletic" class="w-full group bg-slate-800/80 hover:bg-cyan-500 border border-cyan-500/30 hover:border-cyan-400 p-3.5 rounded-xl text-left transition-all duration-200">
                     <div class="flex justify-between items-center mb-1">
-                        <span class="font-black text-lg text-white group-hover:text-slate-950 italic">アスレチックモード (PARKOUR)</span>
+                        <span class="font-black text-base md:text-lg text-white group-hover:text-slate-950 italic">アスレチックモード (PARKOUR)</span>
                         <span class="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 group-hover:bg-slate-950 group-hover:text-cyan-300 rounded">TRAINING</span>
                     </div>
-                    <p class="text-xs text-slate-400 group-hover:text-slate-900 font-semibold">
+                    <p class="text-xs text-slate-300 group-hover:text-slate-900 font-semibold">
                         ジャンプ・壁登り・マントルブースト・スライディングを駆使して頂上ゴールを目指す！
                     </p>
                 </button>
             </div>
 
             <!-- Game Results Banner (Hidden initially) -->
-            <div id="results-banner" class="hidden mb-4 p-4 bg-slate-950/80 border border-amber-400/50 rounded-xl">
-                <p id="result-status" class="text-xl font-black text-amber-400 italic">ROUND COMPLETE!</p>
-                <p id="result-stats" class="text-sm text-slate-300 font-bold mt-1">TOTAL SCORE: 0</p>
+            <div id="results-banner" class="hidden mb-3 p-3 bg-slate-950/80 border border-amber-400/50 rounded-xl">
+                <p id="result-status" class="text-lg font-black text-amber-400 italic">ROUND COMPLETE!</p>
+                <p id="result-stats" class="text-xs text-slate-300 font-bold mt-0.5">TOTAL SCORE: 0</p>
             </div>
+
+            <p class="text-[11px] text-slate-400">※画面をクリックして操作を有効化（ESCでマウス解除）</p>
         </div>
     </div>
 
@@ -933,6 +945,25 @@
         // Mode Selection Button Handlers
         document.getElementById('btn-mode-combat').addEventListener('click', startCombatMode);
         document.getElementById('btn-mode-athletic').addEventListener('click', startAthleticMode);
+
+        // Preview Screen Toggle (temporary unlock pointer to see arena)
+        document.getElementById('btn-quick-preview').addEventListener('click', () => {
+            const overlay = document.getElementById('start-overlay');
+            if (overlay.classList.contains('opacity-0')) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+            } else {
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+                showHUD(true);
+            }
+        });
+
+        // Click screen to restore overlay if in preview mode
+        window.addEventListener('click', (e) => {
+            const overlay = document.getElementById('start-overlay');
+            if (overlay.classList.contains('opacity-0') && document.pointerLockElement !== document.body) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+            }
+        });
 
         // --- COLLISION DETECTOR (Barrier & Rocks) ---
         function checkCollisions(newPos) {
