@@ -10,26 +10,43 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- 埋め込みCSSスタイルシート -->
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
+        * {
+            box-sizing: border-box;
             user-select: none;
             -webkit-user-select: none;
-            font-family: 'Inter', sans-serif;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
             touch-action: none;
             background-color: #0b0f19;
+            color: #ffffff;
         }
         canvas {
             display: block;
             width: 100vw;
             height: 100vh;
         }
-        /* Dynamic Crosshair */
+        /* Dynamic Crosshair Elements */
         .crosshair-line {
             position: absolute;
             background-color: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 0 4px rgba(0,0,0,0.6);
+            box-shadow: 0 0 4px rgba(0,0,0,0.8);
+        }
+        /* Custom Scrollbar & Utility Animations */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+        .glow-effect {
+            animation: pulseGlow 2s infinite ease-in-out;
         }
     </style>
 </head>
@@ -80,26 +97,26 @@
                         <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">トレーニング開始 <i class="fa-solid fa-arrow-right"></i></span>
                     </div>
 
-                    <!-- Casual Match Card (Coming Soon) -->
+                    <!-- Casual Match Card -->
                     <div onclick="selectMode('casual')" id="card-casual" class="mode-card opacity-60 group relative bg-slate-900/40 border-2 border-slate-800 rounded-2xl p-6 cursor-not-allowed flex flex-col justify-between">
                         <div>
                             <div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-slate-500 text-2xl mb-4">
                                 <i class="fa-solid fa-gamepad"></i>
                             </div>
                             <h3 class="text-xl font-bold text-slate-400 mb-2">カジュアルマッチ</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed mb-4">広大なフィールドで戦うバトロワモード（準備中）。</p>
+                            <p class="text-xs text-slate-500 leading-relaxed mb-4">広大なフィールドで戦うバトロワモード（後日実装予定）。</p>
                         </div>
                         <span class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">準備中...</span>
                     </div>
 
-                    <!-- Ranked Match Card (Coming Soon) -->
+                    <!-- Ranked Match Card -->
                     <div onclick="selectMode('ranked')" id="card-ranked" class="mode-card opacity-60 group relative bg-slate-900/40 border-2 border-slate-800 rounded-2xl p-6 cursor-not-allowed flex flex-col justify-between">
                         <div>
                             <div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-slate-500 text-2xl mb-4">
                                 <i class="fa-solid fa-ranking-star"></i>
                             </div>
                             <h3 class="text-xl font-bold text-slate-400 mb-2">ランクマッチ</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed mb-4">RPを懸けて戦う競技モード（準備中）。</p>
+                            <p class="text-xs text-slate-500 leading-relaxed mb-4">RPを懸けて戦う競技モード（後日実装予定）。</p>
                         </div>
                         <span class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">準備中...</span>
                     </div>
@@ -111,10 +128,13 @@
             <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-t border-slate-800 pt-4">
                 <div class="text-[11px] text-slate-400 flex flex-wrap gap-3">
                     <span><i class="fa-solid fa-keyboard text-amber-400 mr-1"></i> WASD: 移動</span>
-                    <span><i class="fa-solid fa-arrow-up text-amber-400 mr-1"></i> Space: ジャンプ / 壁面で壁登り (5秒)</span>
-                    <span><i class="fa-solid fa-person-running text-amber-400 mr-1"></i> Shift: しゃがみ (ダッシュ時スライディング)</span>
+                    <span><i class="fa-solid fa-arrow-up text-amber-400 mr-1"></i> Space: 高ジャンプ / 壁登り</span>
+                    <span><i class="fa-solid fa-person-running text-amber-400 mr-1"></i> Shift: しゃがみ / スライド</span>
+                    <span><i class="fa-solid fa-crosshairs text-amber-400 mr-1"></i> C / 右クリック: 1倍スコープ覗き込み(ADS)</span>
+                    <span><i class="fa-solid fa-hand text-amber-400 mr-1"></i> X: ナイフ / 武器切替</span>
                     <span><i class="fa-solid fa-bolt text-amber-400 mr-1"></i> Q: フェーズシフト</span>
-                    <span><i class="fa-solid fa-gun text-amber-400 mr-1"></i> 1/2: 武器切替</span>
+                    <span><i class="fa-solid fa-rotate text-amber-400 mr-1"></i> F: リロード</span>
+                    <span><i class="fa-solid fa-gun text-amber-400 mr-1"></i> 1/2: 武器選択</span>
                 </div>
                 <button id="start-btn" onclick="startGame()" class="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black tracking-wider text-base rounded-xl shadow-lg shadow-amber-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-3">
                     <i class="fa-solid fa-play"></i> 射撃訓練場へ入場
@@ -252,12 +272,12 @@
                     <div id="weapon-name" class="text-sm font-black tracking-widest text-slate-200 uppercase">R-301 カービン</div>
                     <div class="flex items-baseline justify-end gap-1">
                         <span id="ammo-clip" class="text-4xl font-black text-amber-400 font-mono">30</span>
-                        <span class="text-slate-500 text-lg font-bold">/</span>
+                        <span id="ammo-divider" class="text-slate-500 text-lg font-bold">/</span>
                         <span id="ammo-reserve" class="text-slate-400 font-mono text-lg">∞</span>
                     </div>
                 </div>
-                <div class="w-12 h-12 bg-amber-500/10 border border-amber-500/40 rounded-xl flex items-center justify-center text-amber-400 text-2xl">
-                    <i class="fa-solid fa-gun"></i>
+                <div id="weapon-icon-box" class="w-12 h-12 bg-amber-500/10 border border-amber-500/40 rounded-xl flex items-center justify-center text-amber-400 text-2xl">
+                    <i id="weapon-icon" class="fa-solid fa-gun"></i>
                 </div>
             </div>
 
@@ -273,7 +293,10 @@
             <!-- Right Action Buttons Area -->
             <div class="absolute bottom-8 right-8 flex flex-col gap-3 pointer-events-auto">
                 <div class="flex gap-3 items-center">
-                    <button id="btn-touch-weapon" class="w-12 h-12 bg-slate-800/90 border border-amber-500/60 rounded-full flex items-center justify-center text-amber-400 active:bg-amber-500 active:text-slate-950">
+                    <button id="btn-touch-knife" class="w-12 h-12 bg-slate-800/90 border border-amber-500/60 rounded-full flex items-center justify-center text-amber-400 active:bg-amber-500 active:text-slate-950">
+                        <i class="fa-solid fa-hand text-sm"></i>
+                    </button>
+                    <button id="btn-touch-reload" class="w-12 h-12 bg-slate-800/90 border border-amber-500/60 rounded-full flex items-center justify-center text-amber-400 active:bg-amber-500 active:text-slate-950">
                         <i class="fa-solid fa-rotate text-sm"></i>
                     </button>
                     <button id="btn-touch-ads" class="w-14 h-14 bg-slate-900/90 border-2 border-amber-500/60 rounded-full flex items-center justify-center text-amber-400 text-xl active:bg-amber-500 active:text-slate-950">
@@ -308,30 +331,55 @@
 
     </div>
 
-    <!-- MAIN GAME LOGIC SCRIPT -->
+    <!-- MAIN GAME JAVASCRIPT LOGIC -->
+    <script type="module">
+        // Firebase Modular Import
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+
+        // ユーザー指定のFirebase設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyB4CEehZ7eT4TTYRlnmd3fu6kYwVZdX5Kw",
+            authDomain: "aaaa-5b16e.firebaseapp.com",
+            projectId: "aaaa-5b16e",
+            storageBucket: "aaaa-5b16e.firebasestorage.app",
+            messagingSenderId: "462669237707",
+            appId: "1:462669237707:web:32ca4b551348f04ab2fa4e"
+        };
+
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+    </script>
+
     <script>
         // ------------------------------------------------------------------
-        // WEAPON DEFINITIONS
+        // 武器定義 (WEAPONS DEFINITION)
         // ------------------------------------------------------------------
         const WEAPONS = {
             AR: {
                 name: "R-301 カービン",
                 damage: 15,
                 maxClip: 30,
-                fireRate: 0.1, // seconds between shots
+                fireRate: 0.1, // 秒間10発 (フルオート)
                 color: 0xf59e0b
             },
             SMG: {
                 name: "R-99 SMG",
                 damage: 13,
                 maxClip: 35,
-                fireRate: 0.065,
+                fireRate: 0.065, // 秒間約15.3発 (超高速フルオート)
                 color: 0x06b6d4
+            },
+            KNIFE: {
+                name: "サバイバルナイフ",
+                damage: 30,
+                maxClip: 0,
+                fireRate: 0.5,
+                color: 0x10b981
             }
         };
 
         // ------------------------------------------------------------------
-        // GLOBAL GAME CONFIG & STATE
+        // グローバルゲーム設定＆状態 (GAME STATE)
         // ------------------------------------------------------------------
         const GAME_STATE = {
             mode: 'range',
@@ -343,8 +391,8 @@
                 maxHp: 100,
                 shield: 50,
                 maxShield: 50,
-                speed: 12,
-                slideSpeed: 26,
+                speed: 18,
+                slideSpeed: 36,
                 isSliding: false,
                 slideTimer: 0,
                 isGrounded: true,
@@ -352,258 +400,207 @@
                 abilityCooldown: 0,
                 isAbilityActive: false,
                 isADS: false,
-                // Wall Climbing state
                 isClimbingWall: false,
                 climbTimer: 0,
-                maxClimbTime: 5.0 // 5 seconds max
+                maxClimbTime: 5.0
             },
             currentWeaponKey: 'AR',
+            lastGunKey: 'AR', // Xキー切替記憶用
+            isKnifeEquipped: false,
+            knifeSpinTimer: 0, // ナイフ回し用タイマー
             weapon: {
                 ammo: 30,
                 isReloading: false,
-                lastShot: 0
+                lastShot: 0,
+                isMouseDown: false
             }
         };
 
-        // Input Tracking
+        // キー入力トラッキング
         const keys = {
             KeyW: false, KeyS: false, KeyA: false, KeyD: false,
-            Space: false, ShiftLeft: false, KeyQ: false, KeyR: false,
+            Space: false, ShiftLeft: false, KeyQ: false, KeyF: false,
+            KeyC: false, KeyX: false,
             Digit1: false, Digit2: false
         };
 
         let isMobile = false;
         let touchJoystick = { active: false, startX: 0, startY: 0, moveX: 0, moveY: 0 };
 
-        // Three.js Core Variables
+        // Three.js Core 変数
         let scene, camera, renderer, clock;
         let weaponMeshGroup;
-        let targets = []; // Targets & Bots
-        let mapObstacles = []; // Collidable Wall Meshes
+        let gunMeshContainer, knifeMeshContainer; // メッシュ容器
+        let targets = [];
+        let mapObstacles = [];
         let pitch = 0, yaw = 0;
         const mouseSensitivity = 0.002;
 
-        // Mobile Device Detection
+        // モバイルデバイス判定
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768) {
             isMobile = true;
             document.getElementById('touch-controls').classList.remove('hidden');
         }
 
         // ------------------------------------------------------------------
-        // THREE.JS SYSTEM INIT
-        // ------------------------------------------------------------------
-        function initThree() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f172a);
-            scene.fog = new THREE.FogExp2(0x0f172a, 0.007);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.8, 0);
-
-            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-
-            clock = new THREE.Clock();
-
-            // Lighting
-            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambient);
-
-            const sun = new THREE.DirectionalLight(0xfff5e6, 1.2);
-            sun.position.set(60, 120, 40);
-            sun.castShadow = true;
-            sun.shadow.mapSize.width = 2048;
-            sun.shadow.mapSize.height = 2048;
-            scene.add(sun);
-
-            // Construct Map Environment
-            buildArenaMap();
-
-            // Create Viewmodel
-            createWeaponViewModel();
-
-            window.addEventListener('resize', onWindowResize);
-        }
-
-        // ------------------------------------------------------------------
-        // MAP & OBSTACLES BUILDER
-        // ------------------------------------------------------------------
-        function buildArenaMap() {
-            // Floor
-            const floorGeo = new THREE.PlaneGeometry(300, 300);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
-
-            const grid = new THREE.GridHelper(300, 60, 0xf59e0b, 0x334155);
-            grid.position.y = 0.01;
-            scene.add(grid);
-
-            // Wall Material
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 });
-
-            // Helper to spawn wall
-            function addWall(x, y, z, w, h, d) {
-                const geo = new THREE.BoxGeometry(w, h, d);
-                const wall = new THREE.Mesh(geo, wallMat);
-                wall.position.set(x, y + h / 2, z);
-                wall.castShadow = true;
-                wall.receiveShadow = true;
-                scene.add(wall);
-                mapObstacles.push(wall);
-            }
-
-            // Outer Boundary Walls
-            addWall(0, 0, -150, 300, 25, 10);
-            addWall(0, 0, 150, 300, 25, 10);
-            addWall(150, 0, 0, 10, 25, 300);
-            addWall(-150, 0, 0, 10, 25, 300);
-
-            // Firing Range Wall Climb Practice Structures (Tall walls & covers)
-            addWall(-20, 0, -25, 12, 10, 2);  // 10m high wall for climbing
-            addWall(0, 0, -25, 12, 14, 2);   // 14m tall wall
-            addWall(20, 0, -25, 12, 10, 2);
-
-            // Scattered Cover Obstacles across the map
-            for (let i = 0; i < 20; i++) {
-                const x = (Math.random() - 0.5) * 180;
-                const z = (Math.random() - 0.5) * 180;
-                if (Math.hypot(x, z) > 30) { // avoid center spawn
-                    const h = 4 + Math.random() * 8;
-                    addWall(x, 0, z, 6, h, 6);
-                }
-            }
-        }
-
-        // ------------------------------------------------------------------
-        // TARGETS & BOT ENTITIES (HP 100 / SHIELD 50)
-        // ------------------------------------------------------------------
-        function setupFiringRangeEntities() {
-            // Clear existing
-            targets.forEach(t => scene.remove(t.mesh));
-            targets = [];
-
-            // 1. Shooting Targets (Flip down on hit and recover)
-            for (let i = -4; i <= 4; i++) {
-                createShootingTarget(i * 7, 0, -35);
-            }
-
-            // 2. Training Bots (HP 100, Shield 50)
-            for (let i = 0; i < 5; i++) {
-                createBot((i - 2) * 10, 0, -20);
-            }
-        }
-
-        function createShootingTarget(x, y, z) {
-            const group = new THREE.Group();
-
-            const standGeo = new THREE.CylinderGeometry(0.2, 0.2, 3);
-            const standMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
-            const stand = new THREE.Mesh(standGeo, standMat);
-            stand.position.y = 1.5;
-            group.add(stand);
-
-            const plateGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.15, 16);
-            const plateMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3 });
-            const plate = new THREE.Mesh(plateGeo, plateMat);
-            plate.rotation.x = Math.PI / 2;
-            plate.position.y = 3;
-            group.add(plate);
-
-            group.position.set(x, y, z);
-            scene.add(group);
-
-            targets.push({
-                type: 'target',
-                mesh: group,
-                plateMesh: plate,
-                isDown: false,
-                resetTimer: 0
-            });
-        }
-
-        function createBot(x, y, z) {
-            const group = new THREE.Group();
-
-            // Body
-            const bodyGeo = new THREE.CapsuleGeometry(0.8, 1.8, 4, 8);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.y = 1.7;
-            body.castShadow = true;
-            group.add(body);
-
-            // Visor / Head
-            const headGeo = new THREE.SphereGeometry(0.45, 16, 16);
-            const headMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7 });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.set(0, 2.5, 0.2);
-            group.add(head);
-
-            group.position.set(x, y, z);
-            scene.add(group);
-
-            targets.push({
-                type: 'bot',
-                mesh: group,
-                hp: 100,
-                maxHp: 100,
-                shield: 50,
-                maxShield: 50,
-                moveDir: new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2).normalize()
-            });
-        }
-
-        // ------------------------------------------------------------------
-        // WEAPON VIEWMODEL
+        // WEAPON & KNIFE VIEWMODEL BUILDER
         // ------------------------------------------------------------------
         function createWeaponViewModel() {
             weaponMeshGroup = new THREE.Group();
 
-            const currentWpn = WEAPONS[GAME_STATE.currentWeaponKey];
-
-            const bodyGeo = new THREE.BoxGeometry(0.14, 0.18, 0.85);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+            // 1. 銃モデルコンテナ
+            gunMeshContainer = new THREE.Group();
+            
+            // レシーバー・メインボディ
+            const bodyGeo = new THREE.BoxGeometry(0.12, 0.16, 0.7);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
-            weaponMeshGroup.add(body);
+            gunMeshContainer.add(body);
 
-            const barrelGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.55);
-            const barrelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 });
+            // バレル
+            const barrelGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.45, 12);
+            const barrelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.2 });
             const barrel = new THREE.Mesh(barrelGeo, barrelMat);
             barrel.rotation.x = Math.PI / 2;
-            barrel.position.set(0, 0.04, -0.6);
-            weaponMeshGroup.add(barrel);
+            barrel.position.set(0, 0.02, -0.5);
+            gunMeshContainer.add(barrel);
 
-            const accentGeo = new THREE.BoxGeometry(0.15, 0.06, 0.25);
-            const accentMat = new THREE.MeshStandardMaterial({ color: currentWpn.color });
+            // マガジン
+            const magGeo = new THREE.BoxGeometry(0.08, 0.25, 0.12);
+            const magMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7 });
+            const mag = new THREE.Mesh(magGeo, magMat);
+            mag.position.set(0, -0.15, -0.05);
+            mag.rotation.x = -0.2;
+            gunMeshContainer.add(mag);
+
+            // グリップ
+            const gripGeo = new THREE.BoxGeometry(0.09, 0.2, 0.1);
+            const gripMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+            const grip = new THREE.Mesh(gripGeo, gripMat);
+            grip.position.set(0, -0.14, 0.2);
+            grip.rotation.x = 0.3;
+            gunMeshContainer.add(grip);
+
+            // 1倍レッドドットスコープ構造 (Cキー覗き込み用)
+            const scopeBaseGeo = new THREE.BoxGeometry(0.08, 0.04, 0.18);
+            const scopeBaseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 });
+            const scopeBase = new THREE.Mesh(scopeBaseGeo, scopeBaseMat);
+            scopeBase.position.set(0, 0.1, -0.05);
+            gunMeshContainer.add(scopeBase);
+
+            // スコープのリングフレーム
+            const scopeFrameGeo = new THREE.TorusGeometry(0.045, 0.008, 8, 16);
+            const scopeFrameMat = new THREE.MeshStandardMaterial({ color: 0x020617, metalness: 0.9 });
+            const scopeFrame = new THREE.Mesh(scopeFrameGeo, scopeFrameMat);
+            scopeFrame.position.set(0, 0.14, -0.05);
+            gunMeshContainer.add(scopeFrame);
+
+            // レティクル（赤点）
+            const reticleGeo = new THREE.SphereGeometry(0.006, 8, 8);
+            const reticleMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+            const reticle = new THREE.Mesh(reticleGeo, reticleMat);
+            reticle.position.set(0, 0.14, -0.05);
+            gunMeshContainer.add(reticle);
+
+            // アクセントカラーパーツ
+            const accentGeo = new THREE.BoxGeometry(0.125, 0.05, 0.22);
+            const currentWpn = WEAPONS[GAME_STATE.currentWeaponKey];
+            const accentMat = new THREE.MeshStandardMaterial({ color: currentWpn.color, emissive: currentWpn.color, emissiveIntensity: 0.4 });
             const accent = new THREE.Mesh(accentGeo, accentMat);
-            accent.position.set(0, 0.07, -0.1);
-            weaponMeshGroup.add(accent);
+            accent.position.set(0, 0.06, 0.1);
+            gunMeshContainer.add(accent);
 
-            weaponMeshGroup.position.set(0.35, -0.3, -0.6);
+            weaponMeshGroup.add(gunMeshContainer);
+
+            // 2. サバイバルナイフモデルコンテナ
+            knifeMeshContainer = new THREE.Group();
+
+            // ナイフの柄（グリップ）
+            const handleGeo = new THREE.CylinderGeometry(0.02, 0.022, 0.22, 12);
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+            const handle = new THREE.Mesh(handleGeo, handleMat);
+            handle.position.y = -0.1;
+            knifeMeshContainer.add(handle);
+
+            // つば（ガード）
+            const guardGeo = new THREE.BoxGeometry(0.03, 0.015, 0.08);
+            const guardMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.9 });
+            const guard = new THREE.Mesh(guardGeo, guardMat);
+            guard.position.y = 0.01;
+            knifeMeshContainer.add(guard);
+
+            // ナイフの刃（ブレード）
+            const bladeShape = new THREE.Shape();
+            bladeShape.moveTo(0, 0);
+            bladeShape.lineTo(0.025, 0.05);
+            bladeShape.lineTo(0.02, 0.3);
+            bladeShape.lineTo(-0.01, 0.35); // 鋭い先端
+            bladeShape.lineTo(-0.015, 0.05);
+            bladeShape.closePath();
+
+            const extrudeSettings = { depth: 0.008, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.002, bevelThickness: 0.002 };
+            const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, extrudeSettings);
+            const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
+            const blade = new THREE.Mesh(bladeGeo, bladeMat);
+            blade.position.set(-0.004, 0.01, -0.004);
+            knifeMeshContainer.add(blade);
+
+            knifeMeshContainer.position.set(0, 0, 0);
+            knifeMeshContainer.visible = false; // 最初は非表示
+            weaponMeshGroup.add(knifeMeshContainer);
+
+            weaponMeshGroup.position.set(0.32, -0.28, -0.55);
             camera.add(weaponMeshGroup);
             scene.add(camera);
         }
 
+        function toggleKnifeMode() {
+            if (GAME_STATE.weapon.isReloading) return;
+
+            setADS(false); // ADS解除
+
+            if (!GAME_STATE.isKnifeEquipped) {
+                // 素手（ナイフ）切り替え
+                GAME_STATE.isKnifeEquipped = true;
+                GAME_STATE.lastGunKey = GAME_STATE.currentWeaponKey;
+                GAME_STATE.currentWeaponKey = 'KNIFE';
+                gunMeshContainer.visible = false;
+                knifeMeshContainer.visible = true;
+                GAME_STATE.knifeSpinTimer = 0;
+            } else {
+                // 銃復帰
+                GAME_STATE.isKnifeEquipped = false;
+                GAME_STATE.currentWeaponKey = GAME_STATE.lastGunKey;
+                gunMeshContainer.visible = true;
+                knifeMeshContainer.visible = false;
+                knifeMeshContainer.rotation.z = 0; // 回転リセット
+            }
+            updateHUD();
+        }
+
         function switchWeapon(key) {
-            if (!WEAPONS[key] || GAME_STATE.currentWeaponKey === key) return;
+            if (!WEAPONS[key] || key === 'KNIFE') return;
+            
+            GAME_STATE.isKnifeEquipped = false;
             GAME_STATE.currentWeaponKey = key;
+            GAME_STATE.lastGunKey = key;
+
+            gunMeshContainer.visible = true;
+            knifeMeshContainer.visible = false;
+            knifeMeshContainer.rotation.z = 0;
+
             const wpn = WEAPONS[key];
             GAME_STATE.weapon.ammo = wpn.maxClip;
             
-            // Re-color accent
-            if (weaponMeshGroup && weaponMeshGroup.children[2]) {
-                weaponMeshGroup.children[2].material.color.setHex(wpn.color);
+            if (gunMeshContainer && gunMeshContainer.children[7]) {
+                gunMeshContainer.children[7].material.color.setHex(wpn.color);
+                gunMeshContainer.children[7].material.emissive.setHex(wpn.color);
             }
             updateHUD();
         }
 
         // ------------------------------------------------------------------
-        // CONTROLS & LISTENERS
+        // イベントリスナー ＆ 入力制御 (INPUT LISTENERS)
         // ------------------------------------------------------------------
         function initInputListeners() {
             window.addEventListener('keydown', (e) => {
@@ -611,7 +608,9 @@
                 if (e.code in keys) keys[e.code] = true;
 
                 if (e.code === 'KeyQ') triggerAbility();
-                if (e.code === 'KeyR') reloadWeapon();
+                if (e.code === 'KeyF') reloadWeapon();
+                if (e.code === 'KeyX') toggleKnifeMode(); // Xキーでナイフ切り替え
+                if (e.code === 'KeyC') setADS(!GAME_STATE.player.isADS); // Cキーで1倍スコープエイム
                 if (e.code === 'Digit1') switchWeapon('AR');
                 if (e.code === 'Digit2') switchWeapon('SMG');
                 if (e.code === 'Escape') togglePause();
@@ -623,11 +622,12 @@
 
             window.addEventListener('mousedown', (e) => {
                 if (!GAME_STATE.isPlaying || GAME_STATE.isPaused) return;
-                if (e.button === 0) shootWeapon();
+                if (e.button === 0) GAME_STATE.weapon.isMouseDown = true;
                 if (e.button === 2) setADS(true);
             });
 
             window.addEventListener('mouseup', (e) => {
+                if (e.button === 0) GAME_STATE.weapon.isMouseDown = false;
                 if (e.button === 2) setADS(false);
             });
 
@@ -676,7 +676,7 @@
                 joystickKnob.style.transform = `translate(0px, 0px)`;
             });
 
-            // Touch Look
+            // タッチカメラ移動
             let touchLookId = null;
             let lastTouchX = 0, lastTouchY = 0;
 
@@ -714,41 +714,51 @@
             window.addEventListener('touchend', clearTouchLook);
             window.addEventListener('touchcancel', clearTouchLook);
 
-            // Action Touch Buttons
-            document.getElementById('btn-touch-shoot').addEventListener('touchstart', (e) => { e.preventDefault(); shootWeapon(); });
+            // タッチアクションボタン
+            const btnShoot = document.getElementById('btn-touch-shoot');
+            btnShoot.addEventListener('touchstart', (e) => { e.preventDefault(); GAME_STATE.weapon.isMouseDown = true; });
+            btnShoot.addEventListener('touchend', (e) => { e.preventDefault(); GAME_STATE.weapon.isMouseDown = false; });
+            btnShoot.addEventListener('touchcancel', (e) => { e.preventDefault(); GAME_STATE.weapon.isMouseDown = false; });
+
             document.getElementById('btn-touch-ads').addEventListener('touchstart', (e) => { e.preventDefault(); setADS(!GAME_STATE.player.isADS); });
+            document.getElementById('btn-touch-knife').addEventListener('touchstart', (e) => { e.preventDefault(); toggleKnifeMode(); });
+            document.getElementById('btn-touch-reload').addEventListener('touchstart', (e) => { e.preventDefault(); reloadWeapon(); });
             document.getElementById('btn-touch-jump').addEventListener('touchstart', (e) => { e.preventDefault(); keys.Space = true; setTimeout(() => keys.Space = false, 250); });
             document.getElementById('btn-touch-slide').addEventListener('touchstart', (e) => { e.preventDefault(); keys.ShiftLeft = true; setTimeout(() => keys.ShiftLeft = false, 500); });
             document.getElementById('btn-touch-ability').addEventListener('touchstart', (e) => { e.preventDefault(); triggerAbility(); });
-            document.getElementById('btn-touch-weapon').addEventListener('touchstart', (e) => { e.preventDefault(); switchWeapon(GAME_STATE.currentWeaponKey === 'AR' ? 'SMG' : 'AR'); });
         }
 
         // ------------------------------------------------------------------
-        // GAME ACTIONS
+        // ゲームアクション (GAME ACTIONS)
         // ------------------------------------------------------------------
         function setADS(active) {
+            if (GAME_STATE.isKnifeEquipped) active = false; // ナイフ時はADS不可
             GAME_STATE.player.isADS = active;
-            const targetPos = active ? new THREE.Vector3(0, -0.18, -0.38) : new THREE.Vector3(0.35, -0.3, -0.6);
+            
+            // 1倍スコープのレティクルをカメラ中心直前(x:0, y:-0.14, z:-0.32)へ持ってきて覗き込むモーション
+            const targetPos = active ? new THREE.Vector3(0, -0.14, -0.32) : new THREE.Vector3(0.32, -0.28, -0.55);
             weaponMeshGroup.position.copy(targetPos);
-            camera.fov = active ? 45 : 75;
+            
+            // スコープズーム効果 (FOV: 75 -> 50)
+            camera.fov = active ? 50 : 75;
             camera.updateProjectionMatrix();
         }
 
         function triggerAbility() {
             if (GAME_STATE.player.abilityCooldown > 0) return;
 
-            // Phase Shift Boost
             GAME_STATE.player.isAbilityActive = true;
-            GAME_STATE.player.abilityCooldown = 12; // 12s CD
+            GAME_STATE.player.abilityCooldown = 12;
             scene.fog.color.setHex(0x0284c7);
 
             setTimeout(() => {
                 GAME_STATE.player.isAbilityActive = false;
-                scene.fog.color.setHex(0x0f172a);
+                scene.fog.color.setHex(0x0a0e17);
             }, 3000);
         }
 
         function reloadWeapon() {
+            if (GAME_STATE.isKnifeEquipped) return; // ナイフ時はリロード不要
             const wpn = WEAPONS[GAME_STATE.currentWeaponKey];
             if (GAME_STATE.weapon.isReloading || GAME_STATE.weapon.ammo === wpn.maxClip) return;
             GAME_STATE.weapon.isReloading = true;
@@ -763,6 +773,8 @@
         }
 
         function shootWeapon() {
+            if (GAME_STATE.isKnifeEquipped) return; // ナイフのときは弾が出ない
+
             const now = clock.getElapsedTime();
             const wpn = WEAPONS[GAME_STATE.currentWeaponKey];
 
@@ -776,11 +788,9 @@
             GAME_STATE.weapon.lastShot = now;
             updateHUD();
 
-            // Muzzle anim
             weaponMeshGroup.position.z += 0.04;
             setTimeout(() => weaponMeshGroup.position.z -= 0.04, 40);
 
-            // Raycast shot
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
@@ -807,74 +817,28 @@
             }
         }
 
-        function applyDamage(target, damage, hitPoint) {
-            const hitMarker = document.getElementById('hit-marker');
-            hitMarker.style.opacity = '1';
-            setTimeout(() => hitMarker.style.opacity = '0', 100);
-
-            let isShieldHit = false;
-
-            if (target.type === 'target') {
-                target.isDown = true;
-                target.mesh.rotation.x = Math.PI / 2; // flip target down
-                target.resetTimer = 2.0; // Auto stand up in 2s
-                showDamageNumber(damage, hitPoint, false);
-            } else if (target.type === 'bot') {
-                if (target.shield > 0) {
-                    target.shield = Math.max(0, target.shield - damage);
-                    isShieldHit = true;
-                } else {
-                    target.hp = Math.max(0, target.hp - damage);
-                }
-
-                showDamageNumber(damage, hitPoint, isShieldHit);
-
-                if (target.hp <= 0) {
-                    scene.remove(target.mesh);
-                    GAME_STATE.kills++;
-                    
-                    // Respawn Bot in 3s
-                    setTimeout(() => {
-                        target.hp = 100;
-                        target.shield = 50;
-                        scene.add(target.mesh);
-                    }, 3000);
-
-                    updateHUD();
-                }
-            }
-        }
-
-        function showDamageNumber(dmg, position, isShield) {
-            const container = document.getElementById('damage-container');
-            const el = document.createElement('div');
-            
-            const vector = position.clone().project(camera);
-            const x = (vector.x * .5 + .5) * window.innerWidth;
-            const y = (-(vector.y * .5) + .5) * window.innerHeight;
-
-            el.className = `absolute font-black text-lg pointer-events-none transform -translate-x-1/2 -translate-y-1/2 transition-all duration-500 ${isShield ? 'text-cyan-400' : 'text-amber-400'}`;
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
-            el.innerText = dmg;
-
-            container.appendChild(el);
-
-            setTimeout(() => {
-                el.style.top = `${y - 25}px`;
-                el.style.opacity = '0';
-            }, 50);
-
-            setTimeout(() => el.remove(), 550);
-        }
-
         // ------------------------------------------------------------------
-        // PLAYER MOVEMENT & WALL CLIMBING PHYSICS
+        // 物理移動 ＆ ナイフ鑑賞モーション (PHYSICS & ANIMATIONS)
         // ------------------------------------------------------------------
         function updatePlayerMovement(delta) {
             camera.rotation.order = "YXZ";
             camera.rotation.y = yaw;
             camera.rotation.x = pitch;
+
+            // 4秒ごとにナイフをくるりと1回転させる演出モーション
+            if (GAME_STATE.isKnifeEquipped && knifeMeshContainer) {
+                GAME_STATE.knifeSpinTimer += delta;
+                if (GAME_STATE.knifeSpinTimer >= 4.0) {
+                    // 0.5秒間で1回転 (2PI)
+                    const progress = (GAME_STATE.knifeSpinTimer - 4.0) / 0.5;
+                    if (progress <= 1.0) {
+                        knifeMeshContainer.rotation.z = progress * Math.PI * 2;
+                    } else {
+                        knifeMeshContainer.rotation.z = 0;
+                        GAME_STATE.knifeSpinTimer = 0; // タイマーリセット
+                    }
+                }
+            }
 
             const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const side = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
@@ -893,18 +857,17 @@
 
             moveDir.normalize();
 
-            // Check Obstacle Raycast in front for Wall Climbing
+            // 壁接触判定
             const wallRaycaster = new THREE.Raycaster(camera.position, forward, 0.1, 1.2);
             const wallIntersects = wallRaycaster.intersectObjects(mapObstacles);
             const isTouchingWall = wallIntersects.length > 0;
 
-            // APEX Wall Climbing Logic (Space held near wall)
+            // 壁のぼり
             if (isTouchingWall && keys.Space && GAME_STATE.player.climbTimer < GAME_STATE.player.maxClimbTime) {
                 GAME_STATE.player.isClimbingWall = true;
                 GAME_STATE.player.climbTimer += delta;
-                GAME_STATE.player.velocity.y = 7; // Upward climb speed
+                GAME_STATE.player.velocity.y = 8.5;
                 
-                // Show climb UI gauge
                 const gauge = document.getElementById('wall-climb-gauge');
                 const bar = document.getElementById('wall-climb-bar');
                 gauge.classList.remove('hidden');
@@ -916,11 +879,11 @@
                 document.getElementById('wall-climb-gauge').classList.add('hidden');
             }
 
-            // Speed calculation
             let currentSpeed = GAME_STATE.player.speed;
+            if (GAME_STATE.isKnifeEquipped) currentSpeed *= 1.1; // ナイフ時は機動力微増
             if (GAME_STATE.player.isAbilityActive) currentSpeed *= 1.5;
 
-            // Sliding Logic
+            // スライディング
             if (keys.ShiftLeft && keys.KeyW && !GAME_STATE.player.isSliding) {
                 GAME_STATE.player.isSliding = true;
                 GAME_STATE.player.slideTimer = 0.8;
@@ -938,38 +901,43 @@
             GAME_STATE.player.velocity.x = moveDir.x * currentSpeed;
             GAME_STATE.player.velocity.z = moveDir.z * currentSpeed;
 
-            // Jump Gravity Physics
+            // ジャンプ ＆ 重力
             if (keys.Space && GAME_STATE.player.isGrounded && !GAME_STATE.player.isClimbingWall) {
-                GAME_STATE.player.velocity.y = 8;
+                GAME_STATE.player.velocity.y = 12.5;
                 GAME_STATE.player.isGrounded = false;
             }
 
             if (!GAME_STATE.player.isGrounded && !GAME_STATE.player.isClimbingWall) {
-                GAME_STATE.player.velocity.y -= 22 * delta; // Gravity
+                GAME_STATE.player.velocity.y -= 24 * delta;
             }
 
-            // Apply displacement
+            // 移動適用
             camera.position.x += GAME_STATE.player.velocity.x * delta;
             camera.position.y += GAME_STATE.player.velocity.y * delta;
             camera.position.z += GAME_STATE.player.velocity.z * delta;
 
-            // Floor collision check
+            // 地面判定
             if (camera.position.y <= (GAME_STATE.player.isSliding ? 1.0 : 1.8)) {
                 camera.position.y = GAME_STATE.player.isSliding ? 1.0 : 1.8;
                 GAME_STATE.player.velocity.y = 0;
                 GAME_STATE.player.isGrounded = true;
-                GAME_STATE.player.climbTimer = 0; // Reset climb time on floor touch
+                GAME_STATE.player.climbTimer = 0;
             }
 
-            // Map Limits
+            // マップ制限
             camera.position.x = Math.max(-140, Math.min(140, camera.position.x));
             camera.position.z = Math.max(-140, Math.min(140, camera.position.z));
 
-            // Ability Cooldown Timer
+            // アビリティCD
             if (GAME_STATE.player.abilityCooldown > 0) {
                 GAME_STATE.player.abilityCooldown -= delta;
                 if (GAME_STATE.player.abilityCooldown <= 0) GAME_STATE.player.abilityCooldown = 0;
                 updateAbilityUI();
+            }
+
+            // フルオート射撃継続判定
+            if (GAME_STATE.weapon.isMouseDown) {
+                shootWeapon();
             }
         }
 
@@ -979,11 +947,10 @@
                     t.resetTimer -= delta;
                     if (t.resetTimer <= 0) {
                         t.isDown = false;
-                        t.mesh.rotation.x = 0; // stand target up
+                        t.mesh.rotation.x = 0;
                     }
                 } else if (t.type === 'bot' && t.hp > 0) {
-                    // Patrol Movement
-                    t.mesh.position.addScaledVector(t.moveDir, delta * 3);
+                    t.mesh.position.addScaledVector(t.moveDir, delta * 4.5);
                     if (Math.abs(t.mesh.position.x) > 80 || Math.abs(t.mesh.position.z) > 80) {
                         t.moveDir.negate();
                     }
@@ -997,12 +964,29 @@
         function updateHUD() {
             const wpn = WEAPONS[GAME_STATE.currentWeaponKey];
             document.getElementById('weapon-name').innerText = wpn.name;
-            document.getElementById('ammo-clip').innerText = GAME_STATE.weapon.ammo;
-            document.getElementById('hud-kills').innerText = GAME_STATE.kills;
+            
+            const ammoClipEl = document.getElementById('ammo-clip');
+            const ammoDividerEl = document.getElementById('ammo-divider');
+            const ammoReserveEl = document.getElementById('ammo-reserve');
+            const iconEl = document.getElementById('weapon-icon');
 
+            if (GAME_STATE.isKnifeEquipped) {
+                ammoClipEl.innerText = "MELEE";
+                ammoClipEl.className = "text-2xl font-black text-emerald-400 font-mono";
+                ammoDividerEl.classList.add('hidden');
+                ammoReserveEl.classList.add('hidden');
+                iconEl.className = "fa-solid fa-hand";
+            } else {
+                ammoClipEl.innerText = GAME_STATE.weapon.ammo;
+                ammoClipEl.className = "text-4xl font-black text-amber-400 font-mono";
+                ammoDividerEl.classList.remove('hidden');
+                ammoReserveEl.classList.remove('hidden');
+                iconEl.className = "fa-solid fa-gun";
+            }
+
+            document.getElementById('hud-kills').innerText = GAME_STATE.kills;
             document.getElementById('shield-bar').style.width = `${(GAME_STATE.player.shield / GAME_STATE.player.maxShield) * 100}%`;
             document.getElementById('shield-val').innerText = `${GAME_STATE.player.shield} / ${GAME_STATE.player.maxShield}`;
-
             document.getElementById('health-bar').style.width = `${(GAME_STATE.player.hp / GAME_STATE.player.maxHp) * 100}%`;
             document.getElementById('health-val').innerText = `${GAME_STATE.player.hp} / ${GAME_STATE.player.maxHp}`;
         }
@@ -1019,16 +1003,249 @@
         }
 
         // ------------------------------------------------------------------
-        // FLOW CONTROLS & WEAPON PICKER
+        // フロー制御 (FLOW CONTROLS)
         // ------------------------------------------------------------------
         function selectMode(mode) {
-            if (mode !== 'range') return; // Casual and Ranked disabled for now
+            if (mode !== 'range') return;
             GAME_STATE.mode = mode;
+        }
+
+        // ------------------------------------------------------------------
+        // 3D シーン初期化 (SCENE & MAP INITIALIZATION)
+        // ------------------------------------------------------------------
+        function initThree() {
+            // シーンの作成
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0e17);
+            scene.fog = new THREE.FogExp2(0x0a0e17, 0.015);
+
+            // カメラの作成
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.8, 0);
+
+            // レンダラーの作成
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+
+            clock = new THREE.Clock();
+
+            // ライティング
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xf59e0b, 1.2);
+            dirLight.position.set(50, 80, 30);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // 床面（サイバー調）
+            const floorGeo = new THREE.PlaneGeometry(300, 300, 30, 30);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x0f172a,
+                roughness: 0.4,
+                metalness: 0.6,
+                wireframe: false
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // グリッドヘルパー（ネオンライン風）
+            const grid = new THREE.GridHelper(300, 60, 0xf59e0b, 0x1e293b);
+            grid.position.y = 0.01;
+            scene.add(grid);
+
+            // 3D 武器モデルの構築
+            createWeaponViewModel();
+
+            // マップ障害物・訓練場構造物の生成
+            buildMapObjects();
+
+            // リサイズイベント対応
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function buildMapObjects() {
+            // 壁のぼり練習用 ハイウォール＆コンテナ
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+            const containerMat = new THREE.MeshStandardMaterial({ color: 0x0369a1, metalness: 0.5 });
+            const pillarMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.3 });
+
+            // 中央巨大ウォール（高さ10m）
+            const highWall = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 2), wallMat);
+            highWall.position.set(0, 5, -18);
+            highWall.castShadow = true;
+            highWall.receiveShadow = true;
+            scene.add(highWall);
+            mapObstacles.push(highWall);
+
+            // 横長ウォール
+            const sideWall = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 30), wallMat);
+            sideWall.position.set(-25, 4, -10);
+            sideWall.castShadow = true;
+            scene.add(sideWall);
+            mapObstacles.push(sideWall);
+
+            // 積み上げコンテナ
+            for (let i = 0; i < 4; i++) {
+                const box = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 12), containerMat);
+                box.position.set(15 + (i % 2) * 7, 2 + Math.floor(i / 2) * 4, -15);
+                box.castShadow = true;
+                scene.add(box);
+                mapObstacles.push(box);
+            }
+
+            // サイバーピラー（柱）
+            for (let i = -3; i <= 3; i += 2) {
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 12, 16), pillarMat);
+                pillar.position.set(i * 12, 6, -35);
+                scene.add(pillar);
+                mapObstacles.push(pillar);
+            }
+        }
+
+        function setupFiringRangeEntities() {
+            // 既存エンティティのクリア
+            targets.forEach(t => scene.remove(t.mesh));
+            targets = [];
+
+            // 1. 倒れる的 (Targets)
+            for (let i = -3; i <= 3; i++) {
+                const targetGroup = new THREE.Group();
+                
+                // ポール
+                const stand = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.1, 0.1, 2, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x475569 })
+                );
+                stand.position.y = 1;
+                targetGroup.add(stand);
+
+                // 的プレート（丸型）
+                const plate = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.8, 0.8, 0.1, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5 })
+                );
+                plate.rotation.x = Math.PI / 2;
+                plate.position.y = 2.2;
+                targetGroup.add(plate);
+
+                targetGroup.position.set(i * 6, 0, -25);
+                scene.add(targetGroup);
+
+                targets.push({
+                    type: 'target',
+                    mesh: targetGroup,
+                    plateMesh: plate,
+                    isDown: false,
+                    resetTimer: 0
+                });
+            }
+
+            // 2. 移動Bot (HP100 / Shield50)
+            for (let i = 0; i < 3; i++) {
+                const botGroup = new THREE.Group();
+
+                // Bot胴体
+                const body = new THREE.Mesh(
+                    new THREE.CapsuleGeometry(0.6, 1.5, 8, 16),
+                    new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.7 })
+                );
+                body.position.y = 1.35;
+                botGroup.add(body);
+
+                // Botバイザー（弱点演出）
+                const visor = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 0.2, 0.3),
+                    new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.8 })
+                );
+                visor.position.set(0, 1.7, -0.35);
+                botGroup.add(visor);
+
+                const startX = -15 + i * 15;
+                botGroup.position.set(startX, 0, -30 - i * 5);
+                scene.add(botGroup);
+
+                targets.push({
+                    type: 'bot',
+                    mesh: botGroup,
+                    hp: 100,
+                    maxHp: 100,
+                    shield: 50,
+                    maxShield: 50,
+                    moveDir: new THREE.Vector3(i % 2 === 0 ? 1 : -1, 0, 0)
+                });
+            }
+        }
+
+        function applyDamage(targetEntity, damage, hitPoint) {
+            // ダメージポップアップの生成
+            showDamageNumber(damage, hitPoint);
+
+            if (targetEntity.type === 'target') {
+                if (!targetEntity.isDown) {
+                    targetEntity.isDown = true;
+                    targetEntity.mesh.rotation.x = Math.PI / 2.5; // 倒れる
+                    targetEntity.resetTimer = 2.0; // 2秒後復帰
+                }
+            } else if (targetEntity.type === 'bot') {
+                // シールド優先消費
+                if (targetEntity.shield > 0) {
+                    targetEntity.shield -= damage;
+                    if (targetEntity.shield < 0) {
+                        targetEntity.hp += targetEntity.shield; // 残りをHPへ
+                        targetEntity.shield = 0;
+                    }
+                } else {
+                    targetEntity.hp -= damage;
+                }
+
+                // 撃破処理
+                if (targetEntity.hp <= 0) {
+                    GAME_STATE.kills++;
+                    updateHUD();
+                    // リスポーン
+                    targetEntity.hp = 100;
+                    targetEntity.shield = 50;
+                    targetEntity.mesh.position.y = 0;
+                }
+            }
+
+            // ヒットマーカー点灯
+            const hitMarker = document.getElementById('hit-marker');
+            hitMarker.style.opacity = '1';
+            setTimeout(() => hitMarker.style.opacity = '0', 80);
+        }
+
+        function showDamageNumber(damage, point) {
+            const container = document.getElementById('damage-container');
+            const el = document.createElement('div');
+            el.className = 'absolute text-amber-400 font-black text-xl font-mono pointer-events-none drop-shadow-md transition-all duration-500 transform -translate-x-1/2 -translate-y-1/2';
+            el.innerText = damage;
+
+            // 3D座標から2Dスクリーン座標へ変換
+            const vector = point.clone().project(camera);
+            const x = (vector.x * .5 + .5) * window.innerWidth;
+            const y = (-(vector.y * .5) + .5) * window.innerHeight;
+
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+
+            container.appendChild(el);
+
+            setTimeout(() => {
+                el.style.transform = 'translate(-50%, -150%) scale(1.2)';
+                el.style.opacity = '0';
+            }, 50);
+
+            setTimeout(() => el.remove(), 550);
         }
 
         function startGame() {
             document.getElementById('menu-overlay').classList.add('opacity-0', 'pointer-events-none');
-            // Show Weapon Selection
             document.getElementById('weapon-select-overlay').classList.remove('hidden');
         }
 
@@ -1079,7 +1296,7 @@
         }
 
         // ------------------------------------------------------------------
-        // LOOP
+        // アニメーションループ (MAIN LOOP)
         // ------------------------------------------------------------------
         function animate() {
             requestAnimationFrame(animate);
